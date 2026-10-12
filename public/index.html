@@ -3,19 +3,47 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f4f7f6">
+  <meta name="theme-color" content="#040a16">
+  <meta name="description" content="Track your study time, build better habits and see your progress with MyTimeMap. Daily logs, focus sessions, weekly insights and study streaks in one place.">
   <title>MyTimeMap — your time, clearly</title>
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/focus-timer.css">
   <link rel="stylesheet" href="/weekly-insights.css">
   <link rel="stylesheet" href="/study-streak.css">
+  <link rel="stylesheet" href="/welcome.css">
+  <link rel="preload" as="image" href="/timemap-login-bg.png">
   <script src="/focus-timer.js" defer></script>
   <script src="/weekly-insights.js" defer></script>
   <script src="/study-streak.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
-  <div id="authView" class="auth-shell">
+  <div id="welcomeView" class="welcome-screen welcome-enter">
+    <div class="welcome-backdrop" aria-hidden="true"></div>
+    <header class="welcome-header">
+      <a class="welcome-brand" href="#welcome" aria-label="MyTimeMap home"><span class="welcome-brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>MyTimeMap</span></a>
+      <p class="welcome-header-tagline">Your time, clearly.</p>
+    </header>
+    <main class="welcome-main">
+      <section class="welcome-hero" aria-labelledby="welcomeTitle">
+        <p class="welcome-eyebrow">YOUR TIME. YOUR PROGRESS.</p>
+        <h1 id="welcomeTitle" class="welcome-title" tabindex="-1"><span class="welcome-title-intro">Welcome to</span><span class="welcome-title-name">MyTimeMap</span></h1>
+        <p class="welcome-description">Track your study time. Build better habits.</p>
+        <p class="welcome-tagline">Make every session count.</p>
+        <div class="welcome-actions">
+          <a id="welcomeStart" class="welcome-button welcome-primary" href="#register"><span>Get started</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></a>
+          <a id="welcomeSignIn" class="welcome-button welcome-secondary" href="#login">Sign in</a>
+          <a id="welcomeContinue" class="welcome-button welcome-primary hidden" href="#dashboard"><span id="welcomeContinueLabel">Continue to Dashboard</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></a>
+        </div>
+        <p id="welcomeStatus" class="welcome-status" role="status" aria-live="polite"></p>
+        <ul class="welcome-features" aria-label="MyTimeMap features"><li>Daily Log</li><li>Focus Timer</li><li>Weekly Insights</li><li>Study Streak</li></ul>
+        <noscript><p class="welcome-status">Enable JavaScript in your browser to sign in and use MyTimeMap.</p></noscript>
+      </section>
+    </main>
+    <footer class="welcome-footer">One day at a time.</footer>
+  </div>
+
+  <div id="authView" class="auth-shell hidden">
     <section class="auth-story">
       <a class="brand brand-light" href="#"><span class="brand-mark"><i></i><i></i><i></i></span><span>MyTimeMap</span></a>
       <div class="story-copy">
@@ -32,9 +60,10 @@
     </section>
     <section class="auth-main">
       <div class="auth-card">
+        <a id="authWelcomeBack" class="auth-welcome-back" href="#welcome"><span aria-hidden="true">←</span> Back to welcome</a>
         <div class="auth-mobile-brand brand"><span class="brand-mark"><i></i><i></i><i></i></span><span>MyTimeMap</span></div>
         <p class="eyebrow" id="authEyebrow">WELCOME BACK</p>
-        <h2 id="authTitle">Sign in to your space</h2>
+        <h2 id="authTitle" tabindex="-1">Sign in to your space</h2>
         <p class="muted" id="authHint">Pick up where you left off.</p>
         <div class="auth-switch" role="tablist">
           <button type="button" class="active" data-mode="login">Sign in</button>

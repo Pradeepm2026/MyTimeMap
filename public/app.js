@@ -1,7 +1,8 @@
 "use strict";
-const state={user:null,activities:[],csrf:"",date:new Date().toLocaleDateString("en-CA"),weekDate:new Date().toLocaleDateString("en-CA"),month:new Date().toLocaleDateString("en-CA").slice(0,7),page:"dashboard",returnPage:"dashboard",authMode:"login",toastTimer:null};
+const state={user:null,activities:[],csrf:"",date:new Date().toLocaleDateString("en-CA"),weekDate:new Date().toLocaleDateString("en-CA"),month:new Date().toLocaleDateString("en-CA").slice(0,7),view:"welcome",page:"dashboard",returnPage:"dashboard",authMode:"login",toastTimer:null};
 const $=s=>document.querySelector(s),content=$("#content");
 let dashboardRenderVersion=0;
+let welcomeSession=null,sessionGeneration=0,publicNavigationVersion=0,enteringDashboard=false,authenticating=false;
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function mins(v){return Math.max(0,Math.round(Number(v)||0));}
 function fmtTime(n){n=mins(n);return Math.floor(n/60)+"h "+String(n%60).padStart(2,"0")+"m";}
@@ -17,7 +18,7 @@ async function request(url,options={}){
   if(options.method&&options.method!=="GET"&&state.csrf)headers["X-CSRF-Token"]=state.csrf;
   const response=await fetch(url,{credentials:"same-origin",...options,headers});
   const type=response.headers.get("content-type")||"",data=type.includes("application/json")?await response.json():await response.text();
-  if(!response.ok)throw new Error(data.error||"Request failed.");
+  if(!response.ok){const error=new Error(data.error||"Request failed.");error.status=response.status;throw error;}
   return data;
 }
 function toast(message,error=false){const t=$("#toast");t.textContent=message;t.classList.toggle("error",error);t.classList.add("show");clearTimeout(state.toastTimer);state.toastTimer=setTimeout(()=>t.classList.remove("show"),2800);}
@@ -36,14 +37,129 @@ async function focusLogUpdated(session){
  }catch(error){toast("Focus saved. Reload the Daily Log to see the updated total.");}
 }
 $("#focusMini").addEventListener("click",()=>navigate("focus"));
-function showAuth(){FocusTimer.disconnect();StudyStreak.disconnect();state.user=null;$("#appView").classList.add("hidden");$("#authView").classList.remove("hidden");}
-function showApp(data){state.user=data.user;state.activities=data.activities;state.csrf=data.csrfToken;$("#authView").classList.add("hidden");$("#appView").classList.remove("hidden");$("#userName").textContent=state.user.name;$("#userHandle").textContent=state.user.email||"@"+state.user.username;$("#avatar").textContent=(state.user.name[0]||"M").toUpperCase();FocusTimer.connect({userId:state.user.id,request,toast,page:()=>state.page,activities:()=>state.activities,navigate,openLog:date=>{state.date=date;navigate("log");},onLogged:focusLogUpdated});render();}
-function setAuthMode(mode){state.authMode=mode;const forgot=mode==="forgot";$("#authError").textContent="";$("#authForm").reset();$("#authForm").classList.toggle("hidden",forgot);$("#recoveryCard").classList.toggle("hidden",!forgot);$(".auth-switch").classList.toggle("hidden",forgot);$("#forgotLink").classList.toggle("hidden",mode!=="login");$("#legacyLoginNote").classList.toggle("hidden",mode!=="login");$("#nameField").classList.toggle("hidden",mode!=="register");$("#authSubmit").innerHTML=mode==="login"?'Sign in <span>→</span>':'Create account <span>→</span>';$("#authTitle").textContent=forgot?"Forgot your password?":mode==="login"?"Sign in to your space":"Create your account";$("#authEyebrow").textContent=forgot?"ACCOUNT RECOVERY":mode==="login"?"WELCOME BACK":"GET STARTED";$("#authHint").textContent=forgot?"A secure way back to your account.":mode==="login"?"Pick up where you left off.":"Your schedule starts with you.";document.querySelectorAll(".auth-switch button").forEach(b=>b.classList.toggle("active",b.dataset.mode===mode));$("#authForm [name=password]").autocomplete=mode==="login"?"current-password":"new-password";$("#authForm [name=email]").placeholder=mode==="register"?"you@example.com":"name@example.com";}
-document.querySelectorAll(".auth-switch button").forEach(b=>b.addEventListener("click",()=>setAuthMode(b.dataset.mode)));
-$("#forgotLink").addEventListener("click",()=>setAuthMode("forgot"));
-$("#recoveryBack").addEventListener("click",()=>setAuthMode("login"));
+function deactivateWorkspace(){
+  FocusTimer.disconnect();StudyStreak.disconnect();dashboardRenderVersion++;
+  state.user=null;state.activities=[];state.csrf="";state.page="dashboard";state.returnPage="dashboard";
+  content.replaceChildren();$("#sidebar").classList.remove("open");$("#mobileMenu").setAttribute("aria-expanded","false");
+}
+function showScreen(view){
+  state.view=view;publicNavigationVersion++;
+  for(const [name,id] of Object.entries({welcome:"#welcomeView",auth:"#authView",app:"#appView"}))$(id).classList.toggle("hidden",name!==view);
+  document.querySelector('meta[name="theme-color"]').content=view==="app"?"#17160f":"#040a16";
+  window.scrollTo(0,0);
+}
+function welcomeStatus(message="",error=false){$("#welcomeStatus").textContent=message;$("#welcomeStatus").classList.toggle("is-error",error);}
+function updateWelcomeActions(){
+  const signedIn=!!welcomeSession;
+  $("#welcomeStart").classList.toggle("hidden",signedIn||enteringDashboard);
+  $("#welcomeSignIn").classList.toggle("hidden",signedIn||enteringDashboard);
+  $("#welcomeContinue").classList.toggle("hidden",!signedIn&&!enteringDashboard);
+  $("#welcomeContinue").setAttribute("aria-disabled",String(enteringDashboard||authenticating));
+  $("#welcomeContinue").setAttribute("aria-busy",String(enteringDashboard||authenticating));
+  $("#welcomeContinueLabel").textContent=authenticating?"Finishing sign in…":enteringDashboard?"Opening your space…":"Continue to Dashboard";
+}
+async function discoverWelcomeSession(){
+  // Wait for the authentication response to set its cookie before checking the session.
+  if(authenticating)return;
+  const generation=++sessionGeneration;
+  try{
+    const data=await request("/api/me");
+    if(generation!==sessionGeneration)return;
+    welcomeSession=data;
+  }catch(error){if(generation!==sessionGeneration)return;if(error.status===401)welcomeSession=null;}
+  updateWelcomeActions();
+}
+function showWelcome({discover=true,focus=true}={}){
+  deactivateWorkspace();showScreen("welcome");enteringDashboard=false;welcomeStatus();updateWelcomeActions();
+  const welcome=$("#welcomeView");welcome.classList.remove("welcome-enter");void welcome.offsetWidth;welcome.classList.add("welcome-enter");
+  if(focus)$("#welcomeTitle").focus({preventScroll:true});
+  if(discover)discoverWelcomeSession();
+}
+function showAuth(mode="login",focus=true){
+  deactivateWorkspace();showScreen("auth");enteringDashboard=false;setAuthMode(mode);
+  if(focus)$("#authTitle").focus({preventScroll:true});
+}
+function showApp(data){
+  sessionGeneration++;welcomeSession=data;enteringDashboard=false;
+  state.user=data.user;state.activities=data.activities;state.csrf=data.csrfToken;state.returnPage="dashboard";
+  history.replaceState(null,"","#dashboard");showScreen("app");
+  $("#userName").textContent=state.user.name;$("#userHandle").textContent=state.user.email||"@"+state.user.username;$("#avatar").textContent=(state.user.name[0]||"M").toUpperCase();
+  state.page="dashboard";
+  FocusTimer.connect({userId:state.user.id,request,toast,page:()=>state.page,activities:()=>state.activities,navigate,openLog:date=>{state.date=date;navigate("log");},onLogged:focusLogUpdated});
+  navigate("dashboard");
+}
+function publicRoute(route,{replace=false}={}){
+  if(location.hash!=="#"+route)history[replace?"replaceState":"pushState"](null,"","#"+route);
+  routePublicScreen();
+}
+async function enterDashboard(){
+  if(enteringDashboard||authenticating)return;
+  enteringDashboard=true;welcomeStatus();updateWelcomeActions();
+  const navigation=publicNavigationVersion,generation=++sessionGeneration;
+  try{
+    const data=await request("/api/me");
+    if(navigation!==publicNavigationVersion||generation!==sessionGeneration||state.view!=="welcome")return;
+    showApp(data);
+  }catch(error){
+    if(navigation!==publicNavigationVersion||generation!==sessionGeneration||state.view!=="welcome")return;
+    if(error.status===401){welcomeSession=null;publicRoute("login",{replace:true});}
+    else welcomeStatus("Could not open your account. Please try again.",true);
+  }finally{
+    if(navigation===publicNavigationVersion){enteringDashboard=false;updateWelcomeActions();}
+  }
+}
+function routePublicScreen({initial=false}={}){
+  const route=location.hash.slice(1);
+  if(["login","register","forgot"].includes(route)){showAuth(route,!initial);return;}
+  if(route==="dashboard"){
+    if(state.view==="app"&&state.user)return;
+    showWelcome({discover:false,focus:false});enterDashboard();return;
+  }
+  showWelcome({focus:!initial});
+}
+$("#welcomeContinue").addEventListener("click",event=>{event.preventDefault();enterDashboard();});
+window.addEventListener("hashchange",()=>routePublicScreen());
+function setAuthMode(mode){
+  state.authMode=mode;
+  const forgot=mode==="forgot",password=$("#authForm [name=password]"),toggle=$("#passwordToggle");
+  $("#authError").textContent="";$("#authForm").reset();
+  $("#authForm").classList.toggle("hidden",forgot);
+  $("#recoveryCard").classList.toggle("hidden",!forgot);
+  $(".auth-switch").classList.toggle("hidden",forgot);
+  $("#forgotLink").classList.toggle("hidden",mode!=="login");
+  $("#legacyLoginNote").classList.toggle("hidden",mode!=="login");
+  $("#nameField").classList.toggle("hidden",mode!=="register");
+  $("#authSubmit").innerHTML=mode==="login"?'Sign in <span>→</span>':'Create account <span>→</span>';
+  $("#authTitle").textContent=forgot?"Forgot your password?":mode==="login"?"Sign in to your space":"Create your account";
+  $("#authEyebrow").textContent=forgot?"ACCOUNT RECOVERY":mode==="login"?"WELCOME BACK":"GET STARTED";
+  $("#authHint").textContent=forgot?"A secure way back to your account.":mode==="login"?"Pick up where you left off.":"Your schedule starts with you.";
+  document.querySelectorAll(".auth-switch button").forEach(b=>b.classList.toggle("active",b.dataset.mode===mode));
+  password.type="password";password.autocomplete=mode==="login"?"current-password":"new-password";
+  toggle.setAttribute("aria-label","Show password");toggle.setAttribute("aria-pressed","false");toggle.classList.remove("is-visible");
+  $("#authForm [name=email]").placeholder=mode==="register"?"you@example.com":"name@example.com";
+}
+document.querySelectorAll(".auth-switch button").forEach(b=>b.addEventListener("click",()=>publicRoute(b.dataset.mode)));
+$("#forgotLink").addEventListener("click",()=>publicRoute("forgot"));
+$("#recoveryBack").addEventListener("click",()=>publicRoute("login"));
 $("#passwordToggle").addEventListener("click",()=>{const input=$("#authForm [name=password]"),button=$("#passwordToggle"),show=input.type==="password";input.type=show?"text":"password";button.setAttribute("aria-label",show?"Hide password":"Show password");button.setAttribute("aria-pressed",String(show));button.classList.toggle("is-visible",show);});
-$("#authForm").addEventListener("submit",async e=>{e.preventDefault();const f=new FormData(e.currentTarget),payload={email:f.get("email").trim(),password:f.get("password")};if(state.authMode==="register")payload.name=f.get("name");$("#authError").textContent="";$("#authSubmit").disabled=true;try{showApp(await request("/api/"+(state.authMode==="login"?"login":"register"),{method:"POST",body:JSON.stringify(payload)}));toast(state.authMode==="login"?"Welcome back.":"Your account is ready.");}catch(x){$("#authError").textContent=x.message;}finally{$("#authSubmit").disabled=false;}});
+$("#authForm").addEventListener("submit",async event=>{
+  event.preventDefault();if($("#authSubmit").disabled)return;
+  const mode=state.authMode,navigation=publicNavigationVersion,generation=++sessionGeneration;
+  const form=new FormData(event.currentTarget),payload={email:form.get("email").trim(),password:form.get("password")};
+  if(mode==="register")payload.name=form.get("name");
+  $("#authError").textContent="";$("#authSubmit").disabled=true;authenticating=true;updateWelcomeActions();
+  try{
+    const data=await request("/api/"+(mode==="login"?"login":"register"),{method:"POST",body:JSON.stringify(payload)});
+    if(generation!==sessionGeneration)return;
+    welcomeSession=data;updateWelcomeActions();
+    if(navigation!==publicNavigationVersion||state.view!=="auth")return;
+    showApp(data);toast(mode==="login"?"Welcome back.":"Your account is ready.");
+  }catch(error){if(navigation===publicNavigationVersion&&state.view==="auth")$("#authError").textContent=error.message;}
+  finally{
+    authenticating=false;$("#authSubmit").disabled=false;updateWelcomeActions();
+    if(state.view==="welcome")discoverWelcomeSession();
+  }
+});
 document.querySelectorAll("[data-nav]").forEach(b=>b.addEventListener("click",e=>{e.preventDefault();navigate(b.dataset.nav);}));
 function navigate(page){if(page==="logout"&&state.page!=="logout")state.returnPage=state.page;if(page==="log"){const today=new Date().toLocaleDateString("en-CA");if(state.date<moveDate(today,-1)||state.date>today)state.date=today;}state.page=page;$("#sidebar").classList.remove("open");$("#mobileMenu").setAttribute("aria-expanded","false");document.querySelectorAll(".nav-item").forEach(b=>b.classList.toggle("active",b.dataset.nav===page));$("#pageCrumb").textContent=({dashboard:"Dashboard",log:"Daily log",schedule:"My schedule",focus:"Focus timer",streak:"Study streak",logout:"Logout"}[page]||page);render();}
 $("#mobileMenu").addEventListener("click",()=>{const sidebar=$("#sidebar"),isOpen=sidebar.classList.toggle("open");$("#mobileMenu").setAttribute("aria-expanded",String(isOpen));});
@@ -118,7 +234,18 @@ async function renderLog(){
  content.innerHTML='<div class="page-heading"><div><p class="eyebrow">A SMALL DAILY CHECK-IN</p><h1>Daily log</h1><p>Enter the time you spent on each activity.</p></div>'+dateControl("One entry per day")+'</div><section class="log-panel"><div class="log-toolbar"><strong>'+esc(datePretty(state.date))+'</strong><span>Use hours:minutes, for example 2:30</span></div><form id="dayForm">'+form+'<label class="field notes-field">Notes <textarea name="notes" maxlength="2000" placeholder="Anything you want to remember about today?">'+esc(d.notes)+'</textarea></label><div class="log-footer"><button class="button button-primary" type="submit">Save daily log <span>→</span></button><span id="savedMark" class="saved-mark"></span><small>Changes update your graphs automatically.</small></div></form></section>';
  document.querySelectorAll("[data-activity]").forEach(input=>input.addEventListener("input",()=>{const v=parseInput(input.value);input.setCustomValidity(Number.isNaN(v)?"Use hours:minutes from 0:00 to 24:00.":"");}));hookDate();$("#dayForm").addEventListener("submit",async e=>{e.preventDefault();const times={};let bad=false;document.querySelectorAll("[data-activity]").forEach(input=>{const v=parseInput(input.value);if(Number.isNaN(v)){input.setCustomValidity("Use hours:minutes from 0:00 to 24:00.");input.reportValidity();bad=true;}else{input.setCustomValidity("");if(Number(v||0)!==Number(input.dataset.savedMinutes||0))times[input.dataset.activity]=v;}});if(bad)return;const button=e.currentTarget.querySelector('button[type="submit"]');button.disabled=true;const submittedValues=new Map([...document.querySelectorAll("[data-activity]")].map(input=>[input.dataset.activity,input.value]));try{const saved=await request("/api/day",{method:"PUT",body:JSON.stringify({date:state.date,times,notes:e.currentTarget.elements.notes.value})});document.querySelectorAll("[data-activity]").forEach(input=>{const total=Number(saved.log.times[input.dataset.activity]||0);if(input.value===submittedValues.get(input.dataset.activity))input.value=fmtInput(total);input.dataset.savedMinutes=String(total);});$("#savedMark").textContent="Saved just now";toast("Daily log saved.");}catch(x){toast(x.message,true);}finally{button.disabled=false;}});
 }
-function renderLogout(){content.innerHTML='<section class="logout-screen"><div class="logout-mark" aria-hidden="true">↪</div><p class="eyebrow">SIGN OUT</p><h1>Log out of MyTimeMap?</h1><p>Your tracked time and schedule are saved to your account. You can sign in again anytime.</p><div class="logout-actions"><button class="button logout-cancel" id="cancelLogout" type="button">No, stay logged in</button><button class="button logout-confirm" id="confirmLogout" type="button">Yes, log out <span>→</span></button></div></section>';$("#cancelLogout").addEventListener("click",()=>navigate(state.returnPage||"dashboard"));$("#confirmLogout").addEventListener("click",async e=>{const button=e.currentTarget;button.disabled=true;try{await request("/api/logout",{method:"POST",body:"{}"});state.csrf="";showAuth();setAuthMode("login");}catch(error){toast(error.message,true);button.disabled=false;}});}
+function renderLogout(){
+  content.innerHTML='<section class="logout-screen"><div class="logout-mark" aria-hidden="true">↪</div><p class="eyebrow">SIGN OUT</p><h1>Log out of MyTimeMap?</h1><p>Your tracked time and schedule are saved to your account. You can sign in again anytime.</p><div class="logout-actions"><button class="button logout-cancel" id="cancelLogout" type="button">No, stay logged in</button><button class="button logout-confirm" id="confirmLogout" type="button">Yes, log out <span>→</span></button></div></section>';
+  $("#cancelLogout").addEventListener("click",()=>navigate(state.returnPage||"dashboard"));
+  $("#confirmLogout").addEventListener("click",async event=>{
+    const button=event.currentTarget;button.disabled=true;
+    try{
+      await request("/api/logout",{method:"POST",body:"{}"});
+      sessionGeneration++;welcomeSession=null;
+      history.replaceState(null,"","#welcome");showWelcome({discover:false});
+    }catch(error){toast(error.message,true);button.disabled=false;}
+  });
+}
 async function renderSchedule(){
  const p=state.user.profile||{},acts=state.activities,groups=["Study","Mobile","Sleep","Work","Other"];
  const rows=groups.map(g=>{const list=acts.filter(a=>a.group===g);if(!list.length)return"";return'<section class="activity-group"><h3 class="group-heading"><i class="group-color" style="background:'+groupColor(g)+'"></i>'+esc(g)+'</h3>'+list.map(a=>'<div class="activity-manage-row"><span class="activity-name">'+esc(a.name)+'</span><span class="activity-tag">'+esc(g)+'</span><button type="button" class="remove-button" title="Remove activity" aria-label="Remove '+esc(a.name)+'" data-remove="'+esc(a.id)+'">×</button></div>').join("")+'</section>';}).join("");
@@ -127,7 +254,8 @@ async function renderSchedule(){
  document.querySelectorAll("[data-remove]").forEach(b=>b.addEventListener("click",async()=>{const a=state.activities.find(x=>x.id===b.dataset.remove);if(!a||!confirm("Remove "+a.name+" from your schedule? Old entries will stay in your history."))return;try{await request("/api/activities/"+encodeURIComponent(a.id),{method:"DELETE"});state.activities=state.activities.filter(x=>x.id!==a.id);toast("Activity removed from your schedule.");await renderSchedule();}catch(x){toast(x.message,true);}}));
  $("#goalForm").addEventListener("submit",async e=>{e.preventDefault();const a=parseInput(e.currentTarget.elements.study.value),b=parseInput(e.currentTarget.elements.mobile.value);if(Number.isNaN(a)||Number.isNaN(b)){toast("Use hours:minutes from 0:00 to 24:00.",true);return;}try{const r=await request("/api/profile",{method:"PUT",body:JSON.stringify({studyGoalMinutes:a,mobileLimitMinutes:b})});state.user.profile=r.profile;toast("Daily targets saved.");}catch(x){toast(x.message,true);}});
 }
-(async()=>{try{const data=await request("/api/me");showApp(data);}catch{showAuth();}window.addEventListener("resize",()=>{if(state.page==="dashboard")render();});})();
+routePublicScreen({initial:true});
+window.addEventListener("resize",()=>{if(state.view==="app"&&state.page==="dashboard")render();});
 
 
 

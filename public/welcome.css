@@ -1,0 +1,412 @@
+/* Welcome screen: keep the entry page independent of the signed-in app theme. */
+.welcome-screen {
+  --welcome-gold: #eac673;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-rows: 88px minmax(544px, 1fr) 88px;
+  min-height: 100vh;
+  min-height: 100svh;
+  overflow: hidden;
+  background: #040c19;
+  color: #f3f6fa;
+  font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.welcome-backdrop {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  pointer-events: none;
+  background: url("/timemap-login-bg.png") 48% 50% / cover no-repeat;
+}
+
+.welcome-screen::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 36%, rgba(3, 10, 22, .87) 0%, rgba(3, 10, 22, .68) 30%, rgba(3, 10, 22, .12) 70%),
+    linear-gradient(180deg, rgba(2, 8, 19, .27), rgba(2, 8, 19, .12) 68%, rgba(2, 8, 19, .38));
+}
+
+.welcome-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 0 50px;
+  border-bottom: 1px solid rgba(158, 181, 207, .12);
+}
+
+.welcome-brand {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 14px;
+  border-radius: 5px;
+  color: #f3f6fa;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -.45px;
+}
+
+.welcome-brand-mark {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  width: 41px;
+  height: 41px;
+  padding: 11px 10px 12px;
+  border: 1px solid rgba(142, 194, 166, .08);
+  border-radius: 13px;
+  background: #183b34;
+}
+
+.welcome-brand-mark i {
+  display: block;
+  width: 4px;
+  border-radius: 3px;
+  background: var(--welcome-gold);
+}
+
+.welcome-brand-mark i:nth-child(1) { height: 10px; }
+.welcome-brand-mark i:nth-child(2) { height: 22px; }
+.welcome-brand-mark i:nth-child(3) { height: 16px; }
+
+.welcome-header-tagline {
+  margin: 0 70px 0 0;
+  color: #b4c5d2;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.welcome-main {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 48px 24px 52px;
+}
+
+.welcome-hero {
+  width: min(100%, 880px);
+  text-align: center;
+}
+
+.welcome-eyebrow {
+  margin: 0 0 26px;
+  color: #f0ce7a;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  letter-spacing: 2.8px;
+  text-transform: uppercase;
+}
+
+.welcome-title {
+  margin: 0;
+  border-radius: 8px;
+  font-family: inherit;
+  letter-spacing: -.7px;
+}
+
+.welcome-title-intro {
+  display: block;
+  color: #f3f6fa;
+  font-size: clamp(32px, 3.3vw, 42px);
+  font-weight: 400;
+  line-height: 1.25;
+}
+
+.welcome-title-name {
+  display: block;
+  margin-top: 1px;
+  color: var(--welcome-gold);
+  font-size: clamp(54px, 6.75vw, 86px);
+  font-weight: 750;
+  line-height: 1.14;
+  letter-spacing: -1.6px;
+}
+
+.welcome-description {
+  margin: 31px 0 0;
+  color: #d0dee7;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.welcome-tagline {
+  margin: 0;
+  color: #a7bfce;
+  font-size: 16px;
+  line-height: 26px;
+}
+
+.welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 29px;
+}
+
+.welcome-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  min-height: 58px;
+  padding: 15px 29px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 24px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.welcome-primary {
+  min-width: 214px;
+  justify-content: space-between;
+  border-color: #efd188;
+  background: var(--welcome-gold);
+  color: #101926;
+  box-shadow: 0 8px 25px rgba(3, 10, 18, .18);
+}
+
+.welcome-primary svg {
+  flex-shrink: 0;
+  width: 21px;
+  height: 21px;
+}
+
+.welcome-secondary {
+  min-width: 154px;
+  border-color: #526c7a;
+  background: rgba(13, 30, 42, .72);
+  color: #eef4f9;
+}
+
+@media (hover: hover) {
+  .welcome-primary:hover {
+    border-color: #ffe0a0;
+    background: #f2d184;
+    box-shadow: 0 10px 30px rgba(3, 10, 18, .25);
+    transform: translateY(-2px);
+  }
+
+  .welcome-secondary:hover {
+    border-color: #9ab3bd;
+    background: rgba(30, 51, 63, .92);
+    transform: translateY(-2px);
+  }
+}
+
+.welcome-button:active { transform: translateY(0); }
+
+.welcome-button:focus-visible,
+.welcome-brand:focus-visible,
+.welcome-title:focus-visible {
+  outline: 2px solid #fff1cc;
+  outline-offset: 6px;
+}
+
+.welcome-button[aria-disabled="true"],
+.welcome-button[aria-busy="true"] {
+  opacity: .7;
+  cursor: progress;
+  transform: none;
+}
+
+.welcome-status {
+  max-width: 520px;
+  margin: 14px auto 0;
+  color: #c5d8e5;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.welcome-status:empty { display: none; }
+.welcome-status.is-error { color: #ffc6b1; }
+
+.welcome-features {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px 32px;
+  margin: 43px 0 0;
+  padding: 0;
+  list-style: none;
+  color: #d0dce5;
+  font-size: 14px;
+  line-height: 24px;
+}
+
+.welcome-features li {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.welcome-features li::before {
+  content: "";
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--welcome-gold);
+}
+
+.welcome-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 17px 24px 31px;
+  color: #a9bdcd;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: center;
+}
+
+#authView .auth-welcome-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  min-height: 44px;
+  margin: -9px 0 14px -4px;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #526962;
+  font: 600 12px/1.5 "Segoe UI", system-ui, sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+#authView .auth-welcome-back:hover {
+  color: #173d33;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+#authView .auth-welcome-back svg {
+  width: 16px;
+  height: 16px;
+}
+
+#authView .auth-welcome-back:focus-visible,
+#authTitle:focus-visible {
+  outline: 2px solid #9a7525;
+  outline-offset: 5px;
+}
+
+/* Run only when navigation explicitly requests the welcome introduction. */
+.welcome-enter .welcome-backdrop {
+  animation: welcome-background-settle 1800ms cubic-bezier(.2, .65, .3, 1) both;
+}
+
+.welcome-enter .welcome-header,
+.welcome-enter .welcome-eyebrow,
+.welcome-enter .welcome-title-intro,
+.welcome-enter .welcome-title-name,
+.welcome-enter .welcome-description,
+.welcome-enter .welcome-tagline,
+.welcome-enter .welcome-actions,
+.welcome-enter .welcome-features,
+.welcome-enter .welcome-footer {
+  animation: welcome-reveal 650ms cubic-bezier(.2, .65, .3, 1) both;
+}
+
+.welcome-enter .welcome-eyebrow { animation-delay: 70ms; }
+.welcome-enter .welcome-title-intro { animation-delay: 140ms; }
+.welcome-enter .welcome-title-name { animation-delay: 210ms; }
+.welcome-enter .welcome-description { animation-delay: 280ms; }
+.welcome-enter .welcome-tagline { animation-delay: 330ms; }
+.welcome-enter .welcome-actions { animation-delay: 370ms; }
+.welcome-enter .welcome-features { animation-delay: 490ms; }
+.welcome-enter .welcome-footer { animation-delay: 560ms; }
+
+@keyframes welcome-reveal {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes welcome-background-settle {
+  from { opacity: .75; transform: scale(1.025); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (min-width: 1600px) {
+  .welcome-header { margin-inline: max(50px, calc((100vw - 1500px) / 2)); }
+}
+
+@media (max-width: 760px) {
+  .welcome-screen {
+    grid-template-rows: 78px minmax(520px, 1fr) 70px;
+  }
+
+  .welcome-header { margin-inline: 26px; gap: 16px; }
+  .welcome-brand { gap: 10px; font-size: 20px; }
+  .welcome-brand-mark { width: 37px; height: 37px; padding: 9px 8px 10px; border-radius: 11px; }
+  .welcome-header-tagline { margin-right: 0; font-size: 12px; }
+  .welcome-main { padding: 42px 24px; }
+  .welcome-eyebrow { font-size: 10px; letter-spacing: 2.2px; margin-bottom: 24px; }
+  .welcome-title-name { font-size: clamp(48px, 10vw, 74px); letter-spacing: -1.4px; }
+  .welcome-description { max-width: 490px; margin: 25px auto 0; font-size: 18px; }
+  .welcome-tagline { margin-top: 5px; font-size: 15px; }
+  .welcome-actions { margin-top: 27px; }
+  .welcome-features { gap: 9px 24px; margin-top: 36px; font-size: 13px; }
+  .welcome-features li { gap: 9px; }
+  .welcome-footer { padding: 15px 24px 25px; }
+}
+
+@media (max-width: 480px) {
+  .welcome-screen { grid-template-rows: auto minmax(510px, 1fr) 64px; }
+  .welcome-header { min-height: 76px; margin-inline: 20px; gap: 12px; }
+  .welcome-brand { font-size: 18px; gap: 9px; }
+  .welcome-header-tagline { max-width: 90px; font-size: 11px; text-align: right; }
+  .welcome-main { padding: 42px 20px 36px; }
+  .welcome-eyebrow { font-size: 9px; letter-spacing: 1.8px; }
+  .welcome-title-intro { font-size: 30px; }
+  .welcome-title-name { font-size: clamp(42px, 11vw, 53px); letter-spacing: -1.3px; line-height: 1.25; }
+  .welcome-description { max-width: 330px; margin-top: 22px; font-size: 17px; line-height: 1.6; }
+  .welcome-tagline { font-size: 14px; }
+  .welcome-actions { gap: 12px; }
+  .welcome-button { min-height: 52px; padding: 12px 21px; font-size: 14px; }
+  .welcome-primary { min-width: 174px; gap: 22px; }
+  .welcome-secondary { min-width: 115px; }
+  .welcome-features { max-width: 310px; margin-inline: auto; gap: 10px 23px; font-size: 12px; }
+  .welcome-features li { gap: 8px; }
+  .welcome-footer { font-size: 12px; padding: 10px 20px 22px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-enter .welcome-backdrop,
+  .welcome-enter .welcome-header,
+  .welcome-enter .welcome-eyebrow,
+  .welcome-enter .welcome-title-intro,
+  .welcome-enter .welcome-title-name,
+  .welcome-enter .welcome-description,
+  .welcome-enter .welcome-tagline,
+  .welcome-enter .welcome-actions,
+  .welcome-enter .welcome-features,
+  .welcome-enter .welcome-footer {
+    animation: none;
+  }
+
+  .welcome-button { transition: none; }
+  .welcome-button:hover { transform: none; }
+}
