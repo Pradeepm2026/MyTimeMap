@@ -106,7 +106,7 @@ window.FocusTimer = (() => {
     if (mini) { mini.classList.toggle("hidden", !running || host.page() === "focus"); mini.textContent = (current()?.status === "paused" ? "Ⅱ " : "◷ ") + text + " · " + titles[current()?.mode]; }
     const badge = document.getElementById("focusNavBadge");
     if (badge) { badge.textContent = running ? text : ""; badge.classList.toggle("hidden", !running); }
-    document.title = running ? text + " · " + titles[current().mode] + " | MyTimeMap" : "MyTimeMap — your time, clearly";
+    document.title = running ? text + " · " + titles[current().mode] + " | StudyOrbit" : "StudyOrbit — your time, clearly";
     const expired = running && (current().status === "saving" || (current().status === "running" && ms <= 0));
     if (!pending && ((expired && Date.now() - lastSync > 5000) || ((running || host.page() === "focus") && document.visibilityState === "visible" && Date.now() - lastSync > 30000))) sync();
     updateControls();
@@ -176,7 +176,7 @@ window.FocusTimer = (() => {
     clearInterval(interval); owner = null; data = null; pending = false; error = ""; lastApplied = null;
     document.getElementById("focusMini")?.classList.add("hidden");
     document.getElementById("focusNavBadge")?.classList.add("hidden");
-    document.title = "MyTimeMap — your time, clearly";
+    document.title = "StudyOrbit — your time, clearly";
   }
   function render() {
     document.getElementById("content").innerHTML = '<div class="page-heading focus-heading"><div><p class="eyebrow">LESS DISTRACTION. MORE INTENTION.</p><h1>Make room for focus.</h1><p>One subject. One session. A little closer to your goal.</p></div><span class="focus-heading-pill">◷ Pomodoro</span></div><div id="focusRoot"></div>';
