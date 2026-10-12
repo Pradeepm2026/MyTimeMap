@@ -1,0 +1,69 @@
+.weekly-insights {
+  margin: 22px 0;
+  padding-top: 20px;
+  border-top: 1px solid #dbe5f2;
+}
+.weekly-insights-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.insights-eyebrow { margin: 0 0 6px; color: #516a93; font-size: 9px; font-weight: 700; letter-spacing: 1.6px; }
+.weekly-insights-heading h3 { margin: 0; font: 800 21px/1.25 "Manrope", Arial, sans-serif; letter-spacing: -.6px; color: #18354a; }
+.insights-period-badge { flex-shrink: 0; padding: 7px 10px; border: 1px solid #ccd9ed; border-radius: 20px; background: #f1f5fc; color: #385785; font-size: 10px; font-weight: 700; }
+.insights-date-range { display: flex; flex-wrap: wrap; gap: 6px 9px; margin: 12px 0 5px; color: #52637b; font-size: 11px; line-height: 1.6; }
+.insights-date-range strong { color: #263e5b; font-weight: 700; }
+.insights-date-range > span { color: #677992; }
+.insights-context { margin: 0 0 15px; color: #5a6c81; font-size: 11px; line-height: 1.65; }
+.weekly-insights-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.insight-card { min-width: 0; padding: 19px 17px 15px; border: 1px solid; border-radius: 16px; display: flex; flex-direction: column; box-shadow: 0 7px 18px #203a5110; }
+.insight-study { color: #163f37; border-color: #c8e5d9; background: linear-gradient(140deg, #e9f7ef, #f5fcf8); --insight-accent: #288367; }
+.insight-mobile { color: #583b35; border-color: #edd8cd; background: linear-gradient(140deg, #fff0e7, #fff8f3); --insight-accent: #c67553; }
+.insight-card-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 29px; }
+.insight-card-heading h4 { flex: 1; margin: 0; font-size: 11px; font-weight: 700; }
+.insight-icon { display: grid; place-items: center; width: 29px; height: 29px; border: 1px solid #ffffffa8; border-radius: 9px; background: #ffffff99; color: var(--insight-accent); }
+.insight-icon svg { width: 17px; height: 17px; }
+.insight-trend { padding: 5px 7px; border-radius: 7px; font-size: 9px; font-weight: 700; line-height: 1.35; }
+.insight-trend-positive { background: #d2ecde; color: #175339; }
+.insight-trend-attention { background: #f8e1d3; color: #864323; }
+.insight-trend-neutral { background: #ffffffa8; color: #516478; }
+.insight-value { margin: 18px 0 7px; font: 800 clamp(23px, 2.2vw, 30px)/1.15 "Manrope", Arial, sans-serif; letter-spacing: -.9px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.insight-detail { margin: 0 0 19px; min-height: 35px; color: #52675e; font-size: 11px; line-height: 1.6; }
+.insight-mobile .insight-detail { color: #765d51; }
+.insight-comparison { display: grid; gap: 11px; margin-top: auto; }
+.insight-compare-row { display: grid; grid-template-columns: 45px minmax(15px, 1fr) auto; align-items: center; gap: 8px; font-size: 10px; }
+.insight-compare-row > span { color: #58675f; }
+.insight-compare-row strong { min-width: 61px; font-size: 10px; text-align: right; font-variant-numeric: tabular-nums; }
+.insight-bar-track { height: 6px; background: #213a4710; border-radius: 5px; overflow: hidden; }
+.insight-bar-track i { display: block; height: 100%; border-radius: inherit; }
+.insight-bar-current { background: var(--insight-accent); }
+.insight-bar-previous { background: #9baaaa; }
+.insight-coverage { margin: 17px 0 0; padding-top: 11px; border-top: 1px solid #1f3f4b14; color: #596d70; font-size: 9px; line-height: 1.6; }
+.insight-best { color: #f8f4e8; border-color: #344c60; background: radial-gradient(ellipse at 100% 0, #4c5d553d, transparent 65%), linear-gradient(140deg, #19374a, #112638); --insight-accent: #edcd7c; }
+.insight-best .insight-icon { background: #e2bb5217; border-color: #d7b7663b; }
+.insight-best .insight-card-heading h4 { color: #e1e9ec; }
+.insight-day-value { font-size: clamp(21px, 2vw, 27px); margin-bottom: 4px; color: #fff7de; }
+.insight-best-dates { color: #cbd8e0; font-size: 10px; line-height: 1.6; margin: 0 0 6px; }
+.insight-best-total { margin: 0 0 15px; font-size: 10px; color: #baccd8; line-height: 1.6; }
+.insight-best-total strong { color: #efd38b; font-size: 12px; }
+.insight-week-rhythm { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); align-items: end; gap: 8px; margin-top: auto; }
+.insight-day { min-width: 0; text-align: center; }
+.insight-day-track { height: 42px; display: flex; align-items: flex-end; justify-content: center; border-bottom: 2px solid #426074; }
+.insight-day-track i { display: block; width: 70%; max-width: 25px; border-radius: 4px 4px 0 0; background: #6b92a7; }
+.insight-day > span { display: block; margin-top: 6px; color: #becfd9; font-size: 9px; }
+.insight-day.is-best .insight-day-track i { background: linear-gradient(#f4dc9e, #c9a34e); }
+.insight-day.is-best > span { color: #f8da8f; font-weight: 700; }
+.insight-day.is-future .insight-day-track { border-bottom-style: dashed; border-color: #526477; }
+.insight-day.is-future > span { color: #8ca4b7; }
+.insight-best .insight-coverage { color: #b9cbd7; border-color: #89a1b52c; }
+.insights-footnote { margin: 12px 1px 0; color: #5f7184; font-size: 10px; line-height: 1.7; }
+@media (max-width: 1150px) {
+  .weekly-insights-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .insight-best { grid-column: 1 / -1; }
+  .insight-best .insight-week-rhythm { max-width: 420px; width: 100%; }
+}
+@media (max-width: 600px) {
+  .weekly-insights { margin: 19px 0; padding-top: 17px; }
+  .weekly-insights-grid { grid-template-columns: 1fr; }
+  .insight-card { padding: 17px; }
+  .insight-best { grid-column: auto; }
+  .weekly-insights-heading { align-items: flex-start; flex-wrap: wrap; }
+  .weekly-insights-heading h3 { font-size: 20px; }
+  .insight-detail { min-height: 0; }
+}
