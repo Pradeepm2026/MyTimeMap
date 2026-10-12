@@ -6,6 +6,8 @@
   <meta name="theme-color" content="#f4f7f6">
   <title>MyTimeMap — your time, clearly</title>
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/focus-timer.css">
+  <script src="/focus-timer.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -62,6 +64,7 @@
       <nav class="main-nav">
         <button class="nav-item active" data-nav="dashboard"><span class="nav-icon">◫</span>Dashboard</button>
         <button class="nav-item" data-nav="log"><span class="nav-icon">＋</span>Daily log</button>
+        <button class="nav-item" data-nav="focus"><span class="nav-icon">◷</span>Focus timer<span id="focusNavBadge" class="focus-nav-badge hidden"></span></button>
         <button class="nav-item" data-nav="schedule"><span class="nav-icon">▦</span>My schedule</button>
         <button class="nav-item logout-nav" data-nav="logout"><span class="nav-icon">↪</span>Logout</button>
       </nav>
@@ -77,6 +80,7 @@
       </header>
       <div id="content" class="content"></div>
     </main>
+    <button type="button" id="focusMini" class="focus-mini hidden" aria-label="Open running focus timer"></button>
   </div>
   <div id="toast" class="toast" role="status"></div>
 </body>
