@@ -2,6 +2,7 @@
 const http=require("node:http"),fs=require("node:fs"),path=require("node:path"),crypto=require("node:crypto"),{MongoClient}=require("mongodb");
 const {createFocusService,createFocusRepository}=require("./lib/focus-timer");
 const {buildWeeklyInsights}=require("./lib/weekly-insights");
+const {buildStudyStreak}=require("./lib/study-streak");
 try{process.loadEnvFile(path.join(__dirname,".env"));}catch(error){if(error.code!=="ENOENT")throw error;}
 const ROOT=__dirname,PUBLIC=path.join(ROOT,"public"),IS_VERCEL=process.env.VERCEL==="1",DATA_DIR=process.env.DATA_DIR?path.resolve(process.env.DATA_DIR):path.join(ROOT,"data"),DB_FILE=path.join(DATA_DIR,"mytimemap.json");
 const PORT=Number(process.env.PORT||3000),HOST=process.env.HOST||(process.env.NODE_ENV==="production"?"0.0.0.0":"127.0.0.1"),SESSION_DAYS=14;
@@ -118,6 +119,11 @@ async function api(req,res,url){
   }
   if(req.method==="POST"&&url.pathname==="/api/logout"){if(!csrf(req,res,f))return;db.sessions=db.sessions.filter(s=>s.tokenHash!==f.session.tokenHash);await save();return send(res,200,{ok:true},{"Set-Cookie":cookie("",true)});}
   if(req.method==="GET"&&url.pathname==="/api/dashboard"){const d=url.searchParams.get("date")||today(),m=url.searchParams.get("month")||d.slice(0,7),w=url.searchParams.get("week")||d;if(!validDate(d))return err(res,400,"Choose a valid date.");if(!/^\d{4}-\d{2}$/.test(m)||!validDate(m+"-01"))return err(res,400,"Choose a valid month.");if(!validDate(w))return err(res,400,"Choose a valid week.");return send(res,200,dashboard(u,d,m,w));}
+  if(req.method==="GET"&&url.pathname==="/api/study-streak"){
+    const currentDate=today(),month=url.searchParams.get("month")||currentDate.slice(0,7);
+    if(!/^\d{4}-\d{2}$/.test(month)||Number(month.slice(0,4))<1||!validDate(month+"-01"))return err(res,400,"Choose a valid month and year.");
+    return send(res,200,buildStudyStreak({userId:u.id,logs:db.logs,activities:db.activities,today:currentDate,month,timeZone:process.env.APP_TIME_ZONE||"Asia/Kolkata"}));
+  }
   if(req.method==="GET"&&url.pathname==="/api/day"){const d=url.searchParams.get("date")||today();if(!validDate(d))return err(res,400,"Choose a valid date.");const l=getLog(u.id,d);return send(res,200,{date:d,times:l.times||{},notes:l.notes||"",activities:activities(u.id,false)});}
   if(req.method==="PUT"&&url.pathname==="/api/day"){if(!csrf(req,res,f))return;const b=await body(req);if(!validDate(b.date))return err(res,400,"Choose a valid date.");const currentDate=today();if(b.date<plus(currentDate,-1)||b.date>currentDate)return err(res,400,"Daily logs can only be entered for today or yesterday.");if(!b.times||Array.isArray(b.times)||typeof b.times!=="object")return err(res,400,"Daily time data is missing.");const allow=new Set(activities(u.id,false).map(a=>a.id)),old=getLog(u.id,b.date),times={...old.times};for(const [aid,v] of Object.entries(b.times)){if(!allow.has(aid))return err(res,400,"An activity is no longer on your schedule.");const m=clamp(v);if(Number.isNaN(m))return err(res,400,"Enter time from 0:00 to 24:00.");if(m===null)delete times[aid];else times[aid]=m;}const notes=typeof b.notes==="string"?b.notes.slice(0,2000):"";const next={...old,userId:u.id,date:b.date,times,notes,updatedAt:Date.now()},i=db.logs.findIndex(l=>l.userId===u.id&&l.date===b.date);if(i<0)db.logs.push(next);else db.logs[i]=next;await save();return send(res,200,{ok:true,log:next,dashboard:dashboard(u,b.date)});}
   if(req.method==="PUT"&&url.pathname==="/api/profile"){if(!csrf(req,res,f))return;const b=await body(req),sg=clamp(b.studyGoalMinutes),ml=clamp(b.mobileLimitMinutes);if(Number.isNaN(sg)||Number.isNaN(ml))return err(res,400,"Goals must be between 0:00 and 24:00.");u.profile={studyGoalMinutes:sg,mobileLimitMinutes:ml};await save();return send(res,200,{profile:u.profile});}

@@ -8,8 +8,10 @@
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/focus-timer.css">
   <link rel="stylesheet" href="/weekly-insights.css">
+  <link rel="stylesheet" href="/study-streak.css">
   <script src="/focus-timer.js" defer></script>
   <script src="/weekly-insights.js" defer></script>
+  <script src="/study-streak.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -67,6 +69,7 @@
         <button class="nav-item active" data-nav="dashboard"><span class="nav-icon">◫</span>Dashboard</button>
         <button class="nav-item" data-nav="log"><span class="nav-icon">＋</span>Daily log</button>
         <button class="nav-item" data-nav="focus"><span class="nav-icon">◷</span>Focus timer<span id="focusNavBadge" class="focus-nav-badge hidden"></span></button>
+        <button class="nav-item" data-nav="streak"><span class="nav-icon nav-streak-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2c1 5-4 6-4 10 0 1 .4 2 1 2.5-3-.5-4-2.5-3-5.5-3 3-4 5-3 8a8.4 8.4 0 0 0 16-3c0-4-3-7-7-12Z"/></svg></span>Study streak</button>
         <button class="nav-item" data-nav="schedule"><span class="nav-icon">▦</span>My schedule</button>
         <button class="nav-item logout-nav" data-nav="logout"><span class="nav-icon">↪</span>Logout</button>
       </nav>
