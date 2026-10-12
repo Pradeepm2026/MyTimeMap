@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f7f6">
+  <title>MyTimeMap — your time, clearly</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div id="authView" class="auth-shell">
+    <section class="auth-story">
+      <a class="brand brand-light" href="#"><span class="brand-mark"><i></i><i></i><i></i></span><span>MyTimeMap</span></a>
+      <div class="story-copy">
+        <p class="eyebrow">Make your time visible</p>
+        <h1>A clearer picture<br>of your day.</h1>
+        <p>Build your own schedule, log a little each day, and watch your habits take shape.</p>
+      </div>
+      <div class="story-art" aria-hidden="true">
+        <div class="art-sun"></div><div class="art-orbit orbit-one"></div><div class="art-orbit orbit-two"></div>
+        <div class="art-card"><span class="art-label">THIS WEEK</span><strong>18h 40m</strong><div class="art-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><small>Study time</small></div>
+        <span class="art-dot dot-a"></span><span class="art-dot dot-b"></span><span class="art-dot dot-c"></span>
+      </div>
+      <p class="story-foot">Small entries. Better perspective.</p>
+    </section>
+    <section class="auth-main">
+      <div class="auth-card">
+        <div class="auth-mobile-brand brand"><span class="brand-mark"><i></i><i></i><i></i></span><span>MyTimeMap</span></div>
+        <p class="eyebrow" id="authEyebrow">WELCOME BACK</p>
+        <h2 id="authTitle">Sign in to your space</h2>
+        <p class="muted" id="authHint">Pick up where you left off.</p>
+        <div class="auth-switch" role="tablist">
+          <button type="button" class="active" data-mode="login">Sign in</button>
+          <button type="button" data-mode="register">Create account</button>
+        </div>
+        <form id="authForm">
+          <label id="nameField" class="field hidden">Your name<input name="name" autocomplete="name" maxlength="60" placeholder="e.g. Aanya Sharma"></label>
+          <label class="field">Email address<input name="email" type="text" inputmode="email" autocomplete="email" maxlength="254" required placeholder="name@example.com"></label>
+          <p class="email-legacy-note" id="legacyLoginNote">Existing accounts can still sign in with their current username.</p>
+          <label class="field password-field">Password<span class="password-input-wrap"><input name="password" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters"><button class="password-toggle" id="passwordToggle" type="button" aria-label="Show password" aria-pressed="false"><svg class="eye-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></span></label>
+          <button class="forgot-link" id="forgotLink" type="button">Forgot password?</button>
+          <p id="authError" class="form-error" role="alert"></p>
+          <button class="button button-primary button-wide" type="submit" id="authSubmit">Sign in <span>→</span></button>
+        </form>
+        <section class="recovery-card hidden" id="recoveryCard" aria-live="polite">
+          <span class="recovery-icon" aria-hidden="true">✦</span>
+          <p class="recovery-label">ACCOUNT RECOVERY</p>
+          <h3>Let’s get you back in.</h3>
+          <p>Password recovery is not configured for this account because there is no verified recovery email on file. To protect your time records, ask the person who manages this MyTimeMap installation to help reset access.</p>
+          <button class="button recovery-back" id="recoveryBack" type="button">← Back to sign in</button>
+        </section>
+        <p class="auth-note">Your schedule and entries stay in your own account.</p>
+      </div>
+    </section>
+  </div>
+
+  <div id="appView" class="app-shell hidden">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#" data-nav="dashboard"><span class="brand-mark"><i></i><i></i><i></i></span><span>MyTimeMap</span></a>
+      <div class="side-section-label">WORKSPACE</div>
+      <nav class="main-nav">
+        <button class="nav-item active" data-nav="dashboard"><span class="nav-icon">◫</span>Dashboard</button>
+        <button class="nav-item" data-nav="log"><span class="nav-icon">＋</span>Daily log</button>
+        <button class="nav-item" data-nav="schedule"><span class="nav-icon">▦</span>My schedule</button>
+        <button class="nav-item logout-nav" data-nav="logout"><span class="nav-icon">↪</span>Logout</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="side-tip"><span class="tip-star">✳</span><div><strong>One day at a time</strong><p>A few minutes of tracking can reveal a lot.</p></div></div>
+        <button class="profile-button" id="profileButton"><span class="avatar" id="avatar">M</span><span class="profile-text"><strong id="userName">My account</strong><small id="userHandle">@username</small></span><span class="profile-more">···</span></button>
+      </div>
+    </aside>
+    <main class="main-area">
+      <header class="topbar">
+        <div class="breadcrumb"><span>My workspace</span><b>/</b><strong id="pageCrumb">Dashboard</strong></div>
+        <div class="top-actions"><span class="local-badge"><i></i>Personal space</span><button class="mobile-menu" id="mobileMenu" type="button" aria-label="Open sidebar" aria-expanded="false">☰</button></div>
+      </header>
+      <div id="content" class="content"></div>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status"></div>
+</body>
+</html>
