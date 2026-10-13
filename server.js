@@ -2,6 +2,7 @@
 const http=require("node:http"),fs=require("node:fs"),path=require("node:path"),crypto=require("node:crypto"),{MongoClient}=require("mongodb");
 const {createFocusService,createFocusRepository}=require("./lib/focus-timer");
 const {buildStudyStreak}=require("./lib/study-streak");
+const {createFormsService}=require("./lib/my-forms");
 try{process.loadEnvFile(path.join(__dirname,".env"));}catch(error){if(error.code!=="ENOENT")throw error;}
 const ROOT=__dirname,PUBLIC=path.join(ROOT,"public"),IS_VERCEL=process.env.VERCEL==="1",DATA_DIR=process.env.DATA_DIR?path.resolve(process.env.DATA_DIR):path.join(ROOT,"data"),DB_FILE=path.join(DATA_DIR,"mytimemap.json");
 const PORT=Number(process.env.PORT||3000),HOST=process.env.HOST||(process.env.NODE_ENV==="production"?"0.0.0.0":"127.0.0.1"),SESSION_DAYS=14;
@@ -42,6 +43,7 @@ function uid(){return crypto.randomUUID();}
 function today(){const parts=new Intl.DateTimeFormat("en-CA",{timeZone:process.env.APP_TIME_ZONE||"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date()),date=Object.fromEntries(parts.map(part=>[part.type,part.value]));return date.year+"-"+date.month+"-"+date.day;}
 function focusDateAt(timestamp){const parts=new Intl.DateTimeFormat("en-CA",{timeZone:process.env.APP_TIME_ZONE||"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date(timestamp)),date=Object.fromEntries(parts.map(part=>[part.type,part.value]));return date.year+"-"+date.month+"-"+date.day;}
 const focusService=createFocusService({repository:createFocusRepository({getDatabase:()=>db,getMongoDatabase:()=>mongoDatabase,save}),dateAt:focusDateAt});
+const formsService=createFormsService({getDatabase:()=>db,getMongoDatabase:()=>mongoDatabase,save});
 function validDate(s){if(!/^\d{4}-\d{2}-\d{2}$/.test(s||""))return false;const d=new Date(s+"T00:00:00Z");return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===s;}
 function dt(s){return new Date(s+"T00:00:00Z");}
 function key(d){return d.toISOString().slice(0,10);}
@@ -114,6 +116,18 @@ async function api(req,res,url){
   }
   if(req.method==="GET"&&url.pathname==="/api/me"){const f=findSession(req);if(!f)return err(res,401,"Sign in to continue.");return send(res,200,auth(f.user,f.session));}
   const f=need(req,res);if(!f)return;const u=f.user;
+  if(url.pathname==="/api/forms"||url.pathname.startsWith("/api/forms/")){
+    const id=url.pathname==="/api/forms"?null:url.pathname.slice("/api/forms/".length);
+    try{
+      if(req.method==="GET"&&!id)return send(res,200,{forms:await formsService.list(u.id),today:today()});
+      if(!["POST","PUT","DELETE"].includes(req.method))return err(res,405,"Method not allowed.");
+      if(!csrf(req,res,f))return;
+      if(req.method==="POST"&&!id)return send(res,201,{form:await formsService.write(u.id,null,await body(req))});
+      if(req.method==="PUT"&&id)return send(res,200,{form:await formsService.write(u.id,id,await body(req))});
+      if(req.method==="DELETE"&&id){await formsService.remove(u.id,id);return send(res,200,{ok:true});}
+      return err(res,405,"Method not allowed.");
+    }catch(error){if(error.status)return err(res,error.status,error.message);throw error;}
+  }
   if(url.pathname==="/api/focus"&&(req.method==="GET"||req.method==="POST")){
     if(req.method==="POST"&&!csrf(req,res,f))return;
     try{const result=req.method==="GET"?await focusService.read(u.id):await focusService.act(u.id,await body(req),db.activities);return send(res,200,result);}
