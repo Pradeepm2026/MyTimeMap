@@ -217,9 +217,9 @@ function monthSelector(){
  if(!isCurrent())return;
  const g=d.goal,goalStudy=g.study,mobileLimit=g.mobile;
  d.dailyLegend=d.dailyLegend.map((item,index)=>({...item,color:["#22c7d2","#42c89b","#a78bfa","#fb7185","#fbbf24","#60a5fa"][index%6]}));
- const selectedDay=d.dailySeries.filter(item=>item.date===date),selectedWeek=d.selectedWeekSeries,selectedMonth=d.selectedMonthWeeks;
+ const selectedDay=d.dailySeries.filter(item=>item.date===date),selectedWeek=d.selectedWeekSeries,selectedMonth=d.selectedMonthDays;
  const monthName=datePretty(d.month.start,{month:"long",year:"numeric"});
- const monthSubtitle="Weekly totals for "+monthName+(d.today>=d.month.start&&d.today<d.month.end?" · Through "+datePretty(d.today,{day:"numeric",month:"short"}):"");
+ const monthSubtitle="Daily totals for "+monthName+(d.today>=d.month.start&&d.today<d.month.end?" · Through "+datePretty(d.today,{day:"numeric",month:"short"}):"");
  const goalLine=goalStudy?fmtTime(goalStudy)+" daily goal":'<a href="#" id="setGoalLink">Set a study goal</a>',mobileLine=mobileLimit?"Limit "+fmtTime(mobileLimit):'<a href="#" id="setGoalLink">Set a mobile limit</a>';
  const goalCard=goalStudy?statCard("Study goal",pct(d.selected.study,goalStudy)+"%",fmtTime(d.selected.study)+" of "+fmtTime(goalStudy),"✳","goal-bg",pct(d.selected.study,goalStudy)):statCard("Study goal","—",'<a href="#" id="setGoalLink">Set a daily goal</a>',"✳","goal-bg",null);
  content.innerHTML='<div class="page-heading"><div><p class="eyebrow">YOUR TIME, AT A GLANCE</p><h1>Good day, '+esc(state.user.name.split(" ")[0])+'.</h1><p>'+esc(datePretty(state.date))+' · Your time, mapped clearly.</p></div>'+dateControl("Selected day")+'</div>'+
@@ -231,7 +231,7 @@ function monthSelector(){
    if(!isCurrent())return;
    drawChart($("#dailyChart"),selectedDay,"activityBar",d.dailyLegend);
    drawMetricLineChart($("#weeklyChart"),selectedWeek,{cutoff:d.today});
-   drawMetricLineChart($("#monthlyChart"),selectedMonth,{cutoff:d.today,showRanges:true});
+   drawMetricLineChart($("#monthlyChart"),selectedMonth,{cutoff:d.today});
  });
 }
 function chartCard(title,sub,id,series,totals,legend){
@@ -239,7 +239,10 @@ function chartCard(title,sub,id,series,totals,legend){
  const foot='<span>'+label+': <b>'+fmtTime(totals.study)+' study</b> · <b>'+fmtTime(totals.mobile)+' mobile</b> · <b>'+fmtTime(totals.sleep)+' sleep</b></span>';
  const items=legend||[{name:"Study",color:"#22c7d2"},{name:"Mobile",color:"#fb786b"},{name:"Sleep",color:"#9b7bf5"}];
  const legendHtml=items.map(item=>'<span class="legend-item"><i class="legend-swatch" style="background:'+esc(item.color)+'"></i>'+esc(item.name)+'</span>').join("");
- return '<article class="chart-card '+(id==="dailyChart"?"wide":"")+'"><div class="chart-title-row"><div><h3>'+title+'</h3><p>'+sub+'</p></div><div class="chart-legend">'+legendHtml+'</div></div><div class="chart-wrap"><canvas id="'+id+'" aria-label="'+title+' chart"></canvas></div><div class="chart-footer">'+foot+'</div></article>';
+ const plot=id==="monthlyChart"
+   ? '<div class="monthly-chart-scroll" role="region" aria-label="Day-wise monthly chart. Scroll horizontally to see all dates." tabindex="0"><div class="chart-wrap monthly-chart-plot" style="--month-chart-width:'+Math.max(1200,series.length*48+70)+'px"><canvas id="'+id+'" aria-label="'+title+' chart"></canvas></div></div><p class="monthly-chart-hint">← Swipe or scroll sideways to see all days →</p>'
+   : '<div class="chart-wrap"><canvas id="'+id+'" aria-label="'+title+' chart"></canvas></div>';
+ return '<article class="chart-card '+(id==="dailyChart"?"wide":"")+'"><div class="chart-title-row"><div><h3>'+title+'</h3><p>'+sub+'</p></div><div class="chart-legend">'+legendHtml+'</div></div>'+plot+'<div class="chart-footer">'+foot+'</div></article>';
 }function drawChart(canvas,data,type,legend=[]){
  if(!canvas||!data.length)return;
  const rect=canvas.getBoundingClientRect(),ratio=window.devicePixelRatio||1,w=Math.max(280,rect.width),h=Math.max(130,rect.height);canvas.width=w*ratio;canvas.height=h*ratio;
@@ -318,7 +321,7 @@ function drawMetricLineChart(canvas,data,{cutoff=null,showRanges=false}={}){
   });
   const summary=included.map(({point})=>point.label+": "+series.map(item=>item.key+" "+fmtTime(hours(point,item.key)*60)).join(", ")).join("; ");
   canvas.setAttribute("role","img");
-  canvas.setAttribute("aria-label",(showRanges?"Monthly":"Weekly")+" time chart. "+(summary||"This period has not started yet."));
+  canvas.setAttribute("aria-label",(canvas.id==="monthlyChart"?"Monthly":"Weekly")+" time chart. "+(summary||"This period has not started yet."));
 }
 async function renderLog(){
   const date=state.date,ownerId=state.user.id,version=++logRenderVersion;

@@ -63,6 +63,13 @@ body{background:radial-gradient(ellipse at 78% 0%,rgba(222,239,229,.52),transpar
 .month-selector{display:flex;align-items:center;gap:8px}.month-selector label{display:flex;align-items:center;gap:6px;color:#d3dfec;font-size:10px;font-weight:600}.month-selector select{min-width:86px;padding:8px 9px;border:1px solid #34536b;border-radius:9px;background:#1b344b;color:#f2f7fc;font:600 11px "DM Sans",Arial,sans-serif;outline:none}.month-selector label:last-child select{min-width:76px}.month-selector select:focus{border-color:#63c8cd;box-shadow:0 0 0 3px rgba(34,199,210,.13)}
 @media(max-width:760px){.period-summary-heading .month-selector{width:100%;justify-content:flex-start}.month-selector label{gap:5px}.month-selector select{min-width:90px}}
 
+/* Wide day-wise monthly chart; horizontal scrolling stays inside its card. */
+.period-panel-monthly .monthly-chart-scroll{max-width:100%;min-width:0;margin-top:13px;overflow-x:auto;overflow-y:hidden;border-radius:10px;scrollbar-color:#6889a4 #142b40;scrollbar-width:auto;-webkit-overflow-scrolling:touch}
+.period-panel-monthly .monthly-chart-scroll:focus-visible{outline:2px solid #63c8cd;outline-offset:3px}
+.period-panel-monthly .monthly-chart-plot{width:100%;min-width:var(--month-chart-width,1500px);height:320px;margin-top:0}
+.period-panel-monthly .monthly-chart-hint{margin:10px 0 0;color:#afc2d4;font-size:11px;line-height:1.5}
+@media(max-width:760px){.period-panel-monthly .monthly-chart-plot{height:280px}}
+
 /* Black and gold top navigation */
 .topbar{background:linear-gradient(100deg,#10110f,#191710);border-bottom:1px solid #8e7136;box-shadow:0 5px 18px rgba(12,12,10,.16)}
 .breadcrumb{color:#c4bda9}.breadcrumb b{color:#75613a}.breadcrumb strong{color:#e6c36c}
