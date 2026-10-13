@@ -76,14 +76,21 @@ function weekDaySummary(userId,date,acts){
 function dashboard(u,date,monthValue=date.slice(0,7),weekValue=date){
   const acts=activities(u.id,true),day=getLog(u.id,date),selected={study:totalGroup(day,acts,"Study"),mobile:totalGroup(day,acts,"Mobile"),sleep:totalGroup(day,acts,"Sleep")};
   const ws=weekStart(weekValue),we=weekEnd(ws),ms=monthValue+"-01",nm=new Date(ms+"T00:00:00Z");nm.setUTCMonth(nm.getUTCMonth()+1);const me=plus(key(nm),-1);
-  const week=totals(u.id,ws,we),month=totals(u.id,ms,me),daily=[];
+  const currentDate=today(),monthThrough=me<currentDate?me:currentDate;
+  const week=totals(u.id,ws,we),month=totals(u.id,ms,monthThrough),daily=[];
   const dailyActivities=acts.filter(a=>a.group==="Study"||a.group==="Mobile");
   const palettes={Study:["#3978f6","#39a27b","#9271d5","#2499a8","#bf6aa5","#739543"],Mobile:["#f27b54","#d6a02b","#427e9c","#d45d70","#6b9d65","#8c77bd"]},paletteIndex={Study:0,Mobile:0};
   const dailyLegend=dailyActivities.map(a=>{const i=paletteIndex[a.group]++;return{id:a.id,name:a.name,group:a.group,color:palettes[a.group][i%palettes[a.group].length]};});
   for(let i=13;i>=0;i--){const d=plus(date,-i),l=getLog(u.id,d),activityValues=Object.fromEntries(dailyActivities.map(a=>[a.id,Number(l.times?.[a.id]||0)]));daily.push({label:label(d,{day:"2-digit",month:"short"}),date:d,study:totalGroup(l,acts,"Study"),mobile:totalGroup(l,acts,"Mobile"),activityValues});}
-  const currentDate=today(),selectedWeekDays=Array.from({length:7},(_,index)=>weekDaySummary(u.id,plus(ws,index),acts));
+  const selectedWeekDays=Array.from({length:7},(_,index)=>weekDaySummary(u.id,plus(ws,index),acts));
   const weekly=[];for(let i=7;i>=0;i--){const st=plus(ws,-7*i),en=weekEnd(st),t=totals(u.id,st,en);weekly.push({label:label(st,{day:"2-digit",month:"short"}),start:st,end:en,study:t.study,mobile:t.mobile,sleep:t.sleep});}
-  const selectedMonthWeeks=[],monthDayCount=Number(me.slice(8,10));for(let startDay=1,weekNumber=1;startDay<=monthDayCount;startDay+=7,weekNumber++){const periodStart=plus(ms,startDay-1),periodEnd=plus(ms,Math.min(startDay+6,monthDayCount)-1),t=totals(u.id,periodStart,periodEnd);selectedMonthWeeks.push({label:"Week "+weekNumber,start:periodStart,end:periodEnd,study:t.study,mobile:t.mobile,sleep:t.sleep});}
+  const selectedMonthWeeks=[],monthDayCount=Number(me.slice(8,10));
+  for(let startDay=1,weekNumber=1;startDay<=monthDayCount;startDay+=7,weekNumber++){
+    const periodStart=plus(ms,startDay-1),periodEnd=plus(ms,Math.min(startDay+6,monthDayCount)-1);
+    // Keep every week on the axis, but count only dates that have occurred.
+    const through=periodEnd<currentDate?periodEnd:currentDate,t=totals(u.id,periodStart,through);
+    selectedMonthWeeks.push({label:"Week "+weekNumber,start:periodStart,end:periodEnd,study:t.study,mobile:t.mobile,sleep:t.sleep});
+  }
   const monthly=[],yr=monthValue.slice(0,4);for(let m=0;m<12;m++){const st=yr+"-"+String(m+1).padStart(2,"0")+"-01",d=new Date(st+"T00:00:00Z");d.setUTCMonth(d.getUTCMonth()+1);const t=totals(u.id,st,plus(key(d),-1));monthly.push({label:new Intl.DateTimeFormat("en",{month:"short",timeZone:"UTC"}).format(dt(st)),study:t.study,mobile:t.mobile,sleep:t.sleep,loggedDays:t.loggedDays,studyAvg:t.loggedDays?Math.round(t.study/t.loggedDays):0,mobileAvg:t.loggedDays?Math.round(t.mobile/t.loggedDays):0,sleepAvg:t.loggedDays?Math.round(t.sleep/t.loggedDays):0});}
   return{date,today:currentDate,selected,week:{...week,start:ws,end:we},month:{...month,start:ms,end:me,studyAvg:month.loggedDays?Math.round(month.study/month.loggedDays):0,mobileAvg:month.loggedDays?Math.round(month.mobile/month.loggedDays):0,sleepAvg:month.loggedDays?Math.round(month.sleep/month.loggedDays):0},goal:{study:u.profile.studyGoalMinutes,mobile:u.profile.mobileLimitMinutes},dailyLegend,dailySeries:daily,selectedWeekSeries:selectedWeekDays,selectedMonthWeeks,weeklySeries:weekly,monthlySeries:monthly};
 }

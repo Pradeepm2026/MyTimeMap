@@ -209,19 +209,30 @@ function monthSelector(){
  const yearOptions=Array.from({length:21},(_,i)=>selectedYear-10+i).map(value=>'<option value="'+value+'"'+(value===selectedYear?' selected':'')+'>'+value+'</option>').join("");
  return '<div class="month-selector"><label for="monthSelect"><span>Month</span><select id="monthSelect" aria-label="Select month">'+monthOptions+'</select></label><label for="yearSelect"><span>Year</span><select id="yearSelect" aria-label="Select year">'+yearOptions+'</select></label></div>';
 }async function renderDashboard(){
- const renderVersion=++dashboardRenderVersion,ownerId=state.user.id;
- const d=await request("/api/dashboard?date="+encodeURIComponent(state.date)+"&month="+encodeURIComponent(state.month)+"&week="+encodeURIComponent(state.weekDate)),g=d.goal,goalStudy=g.study,mobileLimit=g.mobile;
+ const renderVersion=++dashboardRenderVersion,ownerId=state.user.id,date=state.date,month=state.month,weekDate=state.weekDate;
+ const isCurrent=()=>state.page==="dashboard"&&state.user?.id===ownerId&&renderVersion===dashboardRenderVersion&&state.date===date&&state.month===month&&state.weekDate===weekDate;
+ let d;
+ try{d=await request("/api/dashboard?date="+encodeURIComponent(date)+"&month="+encodeURIComponent(month)+"&week="+encodeURIComponent(weekDate));}
+ catch(error){if(isCurrent())throw error;return;}
+ if(!isCurrent())return;
+ const g=d.goal,goalStudy=g.study,mobileLimit=g.mobile;
  d.dailyLegend=d.dailyLegend.map((item,index)=>({...item,color:["#22c7d2","#42c89b","#a78bfa","#fb7185","#fbbf24","#60a5fa"][index%6]}));
- if(state.page!=="dashboard"||state.user?.id!==ownerId||renderVersion!==dashboardRenderVersion)return;
- const selectedDay=d.dailySeries.filter(item=>item.date===state.date),chartCutoff=d.today,selectedWeek=d.selectedWeekSeries.filter(item=>item.date<=chartCutoff),selectedMonth=d.selectedMonthWeeks.filter(item=>item.start<=chartCutoff);
+ const selectedDay=d.dailySeries.filter(item=>item.date===date),selectedWeek=d.selectedWeekSeries,selectedMonth=d.selectedMonthWeeks;
+ const monthName=datePretty(d.month.start,{month:"long",year:"numeric"});
+ const monthSubtitle="Weekly totals for "+monthName+(d.today>=d.month.start&&d.today<d.month.end?" · Through "+datePretty(d.today,{day:"numeric",month:"short"}):"");
  const goalLine=goalStudy?fmtTime(goalStudy)+" daily goal":'<a href="#" id="setGoalLink">Set a study goal</a>',mobileLine=mobileLimit?"Limit "+fmtTime(mobileLimit):'<a href="#" id="setGoalLink">Set a mobile limit</a>';
  const goalCard=goalStudy?statCard("Study goal",pct(d.selected.study,goalStudy)+"%",fmtTime(d.selected.study)+" of "+fmtTime(goalStudy),"✳","goal-bg",pct(d.selected.study,goalStudy)):statCard("Study goal","—",'<a href="#" id="setGoalLink">Set a daily goal</a>',"✳","goal-bg",null);
- content.innerHTML='<div class="page-heading"><div><p class="eyebrow">YOUR TIME, AT A GLANCE</p><h1>Good day, '+esc(state.user.name.split(" ")[0])+'.</h1><p>'+esc(datePretty(state.date))+' · Your time, mapped clearly.</p></div>'+dateControl("Changes all report periods")+'</div>'+
+ content.innerHTML='<div class="page-heading"><div><p class="eyebrow">YOUR TIME, AT A GLANCE</p><h1>Good day, '+esc(state.user.name.split(" ")[0])+'.</h1><p>'+esc(datePretty(state.date))+' · Your time, mapped clearly.</p></div>'+dateControl("Selected day")+'</div>'+
  '<section class="period-panel period-panel-daily"><div class="period-panel-heading"><p class="eyebrow">DAILY OVERVIEW</p><span>'+esc(datePretty(state.date,{weekday:"long",day:"numeric",month:"long"}))+'</span></div><section class="stats-grid">'+statCard("Study time",fmtTime(d.selected.study),goalLine,"◷","study-bg",goalStudy?pct(d.selected.study,goalStudy):null)+statCard("Mobile time",fmtTime(d.selected.mobile),mobileLine,"▣","mobile-bg",mobileLimit?pct(d.selected.mobile,mobileLimit):null)+statCard("Sleep",fmtTime(d.selected.sleep),"Logged for selected day","☾","sleep-bg",null)+goalCard+'</section><section class="chart-grid">'+chartCard("Daily rhythm","Selected day · hours by subject and app","dailyChart",selectedDay,d.selected,d.dailyLegend)+'</section></section>'+
  '<section class="period-panel period-panel-weekly">'+periodSummary(d.today>=d.week.start&&d.today<=d.week.end?"This week":"Selected week",datePretty(d.week.start,{day:"numeric",month:"short"})+" – "+datePretty(d.week.end,{day:"numeric",month:"short"}),d.week,7,weekSelector())+'<section class="chart-grid">'+chartCard("Weekly totals","Selected week · Monday to Sunday","weeklyChart",selectedWeek,d.week)+'</section></section>'+
- '<section class="period-panel period-panel-monthly">'+periodSummary(datePretty(d.month.start,{month:"long"})+" month","",d.month,new Date(d.month.end+"T00:00:00Z").getUTCDate(),monthSelector())+'<section class="chart-grid">'+chartCard(datePretty(d.month.start,{month:"long"})+" totals","Weekly totals for "+datePretty(d.month.start,{month:"long"}),"monthlyChart",selectedMonth,d.month)+'</section></section>';
+ '<section class="period-panel period-panel-monthly">'+periodSummary(datePretty(d.month.start,{month:"long"})+" month","",d.month,new Date(d.month.end+"T00:00:00Z").getUTCDate(),monthSelector())+'<section class="chart-grid">'+chartCard(monthName+" totals",monthSubtitle,"monthlyChart",selectedMonth,d.month)+'</section></section>';
  hookDate();const monthInput=$("#monthSelect"),yearInput=$("#yearSelect"),weekInput=$("#weekSelect"),updateMonthSelection=()=>{if(monthInput&&yearInput){state.month=yearInput.value+"-"+monthInput.value;render();}},updateWeekSelection=()=>{if(weekInput?.value){state.weekDate=weekDateFromInput(weekInput.value);render();}};monthInput?.addEventListener("change",updateMonthSelection);yearInput?.addEventListener("change",updateMonthSelection);weekInput?.addEventListener("change",updateWeekSelection);document.querySelectorAll("#setGoalLink").forEach(a=>a.addEventListener("click",e=>{e.preventDefault();navigate("schedule");setTimeout(()=>$("#studyGoalInput")?.focus(),0);}));
- requestAnimationFrame(()=>{drawChart($("#dailyChart"),selectedDay,"activityBar",d.dailyLegend);drawMetricLineChart($("#weeklyChart"),selectedWeek);drawMetricLineChart($("#monthlyChart"),selectedMonth);});
+ requestAnimationFrame(()=>{
+   if(!isCurrent())return;
+   drawChart($("#dailyChart"),selectedDay,"activityBar",d.dailyLegend);
+   drawMetricLineChart($("#weeklyChart"),selectedWeek,{cutoff:d.today});
+   drawMetricLineChart($("#monthlyChart"),selectedMonth,{cutoff:d.today,showRanges:true});
+ });
 }
 function chartCard(title,sub,id,series,totals,legend){
  const label=id==="dailyChart"?"Selected day":id==="weeklyChart"?"Selected week":"Selected month";
@@ -249,15 +260,65 @@ function chartCard(title,sub,id,series,totals,legend){
  }
  c.fillStyle="#b2c3d4";c.font="600 10px Arial, sans-serif";c.textAlign="center";c.textBaseline="top";const every=n>10?Math.ceil(n/7):1;data.forEach((d,i)=>{if(i%every===0||i===n-1)c.fillText(d.label,xAt(i),h-p.b+6);});
 }function groupColor(g){return({Study:"#3978f6",Mobile:"#f27b54",Sleep:"#9271d5",Work:"#e0a441",Other:"#6c8798"})[g]||"#6c8798";}
-function drawMetricLineChart(canvas,data){
- if(!canvas||!data.length)return;
- const rect=canvas.getBoundingClientRect(),ratio=window.devicePixelRatio||1,width=Math.max(280,rect.width),height=Math.max(150,rect.height),p={l:38,r:12,t:12,b:28},plotWidth=width-p.l-p.r,plotHeight=height-p.t-p.b;
- canvas.width=width*ratio;canvas.height=height*ratio;const c=canvas.getContext("2d");c.scale(ratio,ratio);c.clearRect(0,0,width,height);
- const series=[{key:"study",color:"#22c7d2"},{key:"mobile",color:"#fb786b"},{key:"sleep",color:"#9b7bf5"}],values=data.flatMap(point=>series.map(item=>Number(point[item.key]||0)/60)),step=Math.max(1,Math.ceil(Math.max(1,...values)/4)),max=step*4,n=data.length,xAt=i=>p.l+(n===1?plotWidth/2:i*plotWidth/(n-1)),yAt=value=>p.t+plotHeight-(value/max)*plotHeight;
- c.font="600 10px Arial, sans-serif";c.textBaseline="middle";c.textAlign="right";c.lineWidth=.8;
- for(let i=0;i<=4;i++){const y=p.t+plotHeight-(plotHeight*i/4);c.strokeStyle=i===0?"#4a6074":"#2a4054";c.beginPath();c.moveTo(p.l,y);c.lineTo(width-p.r,y);c.stroke();c.fillStyle="#b2c3d4";c.fillText((step*i)+"h",p.l-8,y);}
- series.forEach(item=>{c.beginPath();data.forEach((point,i)=>{const x=xAt(i),y=yAt(Number(point[item.key]||0)/60);if(i===0)c.moveTo(x,y);else c.lineTo(x,y);});c.strokeStyle=item.color;c.lineWidth=3;c.lineJoin="round";c.lineCap="round";c.shadowColor=item.color;c.shadowBlur=8;c.stroke();c.shadowColor="transparent";c.shadowBlur=0;data.forEach((point,i)=>{const x=xAt(i),y=yAt(Number(point[item.key]||0)/60);c.beginPath();c.fillStyle=item.color;c.arc(x,y,4,0,Math.PI*2);c.fill();c.beginPath();c.fillStyle="#132b40";c.arc(x,y,1.7,0,Math.PI*2);c.fill();});});
- c.fillStyle="#b2c3d4";c.font="600 10px Arial, sans-serif";c.textAlign="center";c.textBaseline="top";const every=n>10?Math.ceil(n/7):1;data.forEach((point,i)=>{if(i%every===0||i===n-1)c.fillText(point.label,xAt(i),height-p.b+8);});
+function drawMetricLineChart(canvas,data,{cutoff=null,showRanges=false}={}){
+  if(!canvas)return;
+  const rect=canvas.getBoundingClientRect();
+  if(rect.width<=0||rect.height<=0)return;
+  const ratio=window.devicePixelRatio||1,width=rect.width,height=rect.height;
+  const p={l:42,r:28,t:14,b:showRanges?46:28},plotWidth=Math.max(1,width-p.l-p.r),plotHeight=Math.max(1,height-p.t-p.b);
+  canvas.width=Math.round(width*ratio);canvas.height=Math.round(height*ratio);
+  const c=canvas.getContext("2d");if(!c)return;
+  c.scale(ratio,ratio);c.clearRect(0,0,width,height);
+  const series=[{key:"study",color:"#22c7d2"},{key:"mobile",color:"#fb786b"},{key:"sleep",color:"#9b7bf5"}];
+  const hours=(point,key)=>{const value=Number(point[key]);return Number.isFinite(value)&&value>0?value/60:0;};
+  // Retain all axis positions, including weeks/days that have not started yet.
+  const included=data.map((point,index)=>({point,index})).filter(({point})=>!cutoff||(point.date||point.start)<=cutoff);
+  const values=included.flatMap(({point})=>series.map(item=>hours(point,item.key)));
+  const step=Math.max(1,Math.ceil(Math.max(1,...values)/4)),max=step*4;
+  const xAt=index=>p.l+(data.length<=1?plotWidth/2:index*plotWidth/(data.length-1));
+  const yAt=value=>p.t+plotHeight-(value/max)*plotHeight;
+  c.font="600 10px Arial, sans-serif";c.textBaseline="middle";c.textAlign="right";c.lineWidth=.8;
+  for(let i=0;i<=4;i++){
+    const y=yAt(step*i);c.strokeStyle=i===0?"#4a6074":"#2a4054";
+    c.beginPath();c.moveTo(p.l,y);c.lineTo(width-p.r,y);c.stroke();
+    c.fillStyle="#b2c3d4";c.fillText((step*i)+"h",p.l-8,y);
+  }
+  if(values.some(value=>value>0)){
+    for(const item of series){
+      c.beginPath();
+      included.forEach(({point,index},position)=>{
+        const x=xAt(index),y=yAt(hours(point,item.key));
+        if(position===0)c.moveTo(x,y);else c.lineTo(x,y);
+      });
+      c.strokeStyle=item.color;c.lineWidth=3;c.lineJoin="round";c.lineCap="round";
+      c.shadowColor=item.color;c.shadowBlur=8;c.stroke();c.shadowColor="transparent";c.shadowBlur=0;
+      included.forEach(({point,index})=>{
+        const x=xAt(index),y=yAt(hours(point,item.key));
+        c.beginPath();c.fillStyle=item.color;c.arc(x,y,4,0,Math.PI*2);c.fill();
+        c.beginPath();c.fillStyle="#132b40";c.arc(x,y,1.7,0,Math.PI*2);c.fill();
+      });
+    }
+  }else{
+    c.textAlign="center";c.fillStyle="#dbe6ef";c.font="600 13px Arial, sans-serif";
+    c.fillText(included.length?"No time logged":"Upcoming period",p.l+plotWidth/2,p.t+plotHeight/2-8,plotWidth);
+    c.fillStyle="#a3b8cc";c.font="11px Arial, sans-serif";
+    c.fillText(included.length?"Saved time will appear here.":"Data will appear as days begin.",p.l+plotWidth/2,p.t+plotHeight/2+12,plotWidth);
+  }
+  c.textAlign="center";c.textBaseline="top";
+  const labelWidth=Math.max(1,Math.min(72,plotWidth/Math.max(1,data.length-1)-4));
+  data.forEach((point,index)=>{
+    const future=cutoff&&(point.date||point.start)>cutoff;
+    c.fillStyle=future?"#8297aa":"#c6d5e2";c.font="600 10px Arial, sans-serif";
+    c.fillText(point.label,xAt(index),height-p.b+8,labelWidth);
+    if(showRanges&&point.start&&point.end){
+      const first=Number(point.start.slice(8,10)),last=Number(point.end.slice(8,10));
+      c.fillStyle="#9eafbf";c.font="10px Arial, sans-serif";
+      c.fillText(first===last?String(first):first+"–"+last,xAt(index),height-p.b+23,labelWidth);
+    }
+  });
+  const summary=included.map(({point})=>point.label+": "+series.map(item=>item.key+" "+fmtTime(hours(point,item.key)*60)).join(", ")).join("; ");
+  canvas.setAttribute("role","img");
+  canvas.setAttribute("aria-label",(showRanges?"Monthly":"Weekly")+" time chart. "+(summary||"This period has not started yet."));
 }
 async function renderLog(){
   const date=state.date,ownerId=state.user.id,version=++logRenderVersion;
