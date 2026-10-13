@@ -1,5 +1,21 @@
 .theme-toggle{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;padding:10px;border:1px solid #806728;border-radius:12px;background:#241f13;color:#ead080;cursor:pointer}.theme-toggle svg{width:22px;height:22px}.theme-toggle:hover{background:#3b321a;border-color:#d8b963}.theme-toggle:focus-visible{outline:2px solid #f1d484;outline-offset:3px}.theme-toggle .theme-sun{display:none}html[data-theme="dark"] .theme-toggle .theme-moon{display:none}html[data-theme="dark"] .theme-toggle .theme-sun{display:block}
 /* Theme colors are scoped to the signed-in workspace. */
+/* Match the daily card selectors so their pastel gradients cannot override dark mode. */
+html[data-theme="dark"] .app-shell .period-panel .stat-card:nth-child(1){background:linear-gradient(145deg,#1b2e49,#182637);border-color:#3b567d}
+html[data-theme="dark"] .app-shell .period-panel .stat-card:nth-child(2){background:linear-gradient(145deg,#3c2b26,#2c2422);border-color:#765144}
+html[data-theme="dark"] .app-shell .period-panel .stat-card:nth-child(3){background:linear-gradient(145deg,#302842,#242233);border-color:#61507c}
+html[data-theme="dark"] .app-shell .period-panel .stat-card:nth-child(4){background:linear-gradient(145deg,#213d30,#1b2e25);border-color:#466e55}
+html[data-theme="dark"] .app-shell .period-panel .stat-card .stat-top{color:#d2dfdb}
+html[data-theme="dark"] .app-shell .period-panel .stat-card .stat-value{color:#f4f8f6}
+html[data-theme="dark"] .app-shell .period-panel .stat-card .stat-foot{color:#b6c8bf}
+html[data-theme="dark"] .app-shell .period-panel .stat-card .stat-foot a{color:#a7e6c7}
+html[data-theme="dark"] .app-shell .period-panel .stat-icon{background:#ffffff12}
+html[data-theme="dark"] .app-shell .period-panel .study-bg{color:#94b7ff}
+html[data-theme="dark"] .app-shell .period-panel .mobile-bg{color:#ffae91}
+html[data-theme="dark"] .app-shell .period-panel .sleep-bg{color:#c5acff}
+html[data-theme="dark"] .app-shell .period-panel .goal-bg{color:#9edbb9}
+html[data-theme="dark"] .app-shell .period-panel :is(.period-panel-heading,.period-summary-heading)>span{color:#b6c8bf}
+html[data-theme="dark"] .app-shell .period-panel:before{opacity:.08}
 html[data-theme="dark"] .app-shell{color-scheme:dark;--ink:#e4ede9;--muted:#a7bcb2;--line:#344a41;--paper:#182a24;--canvas:#0d1915;--mint:#254238;--shadow:0 12px 32px #0003;background:var(--canvas);color:var(--ink);min-height:100vh}
 html[data-theme="dark"] .app-shell .main-area{background:radial-gradient(ellipse at top right,#1a302580,transparent 50%),var(--canvas)}
 html[data-theme="dark"] .app-shell :is(.period-panel,.log-panel,.schedule-panel,.settings-panel,.forms-editor,.form-entry,.forms-empty,.how-card,.streak-stat,.streak-calendar-card,.streak-detail-card,.focus-today,.focus-recent,.focus-success,.logout-screen){background:#182a24;border-color:#344a41;color:#e4ede9;box-shadow:0 12px 30px #0002}
