@@ -1,13 +1,36 @@
 "use strict";
 const state={user:null,activities:[],csrf:"",date:new Date().toLocaleDateString("en-CA"),weekDate:new Date().toLocaleDateString("en-CA"),month:new Date().toLocaleDateString("en-CA").slice(0,7),view:"welcome",page:"dashboard",returnPage:"dashboard",authMode:"login",toastTimer:null};
 const $=s=>document.querySelector(s),content=$("#content");
-let dashboardRenderVersion=0;
+let dashboardRenderVersion=0,logRenderVersion=0;
 let welcomeSession=null,sessionGeneration=0,publicNavigationVersion=0,enteringDashboard=false,authenticating=false;
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function mins(v){return Math.max(0,Math.round(Number(v)||0));}
 function fmtTime(n){n=mins(n);return Math.floor(n/60)+"h "+String(n%60).padStart(2,"0")+"m";}
 function fmtInput(n,zeroValue=""){n=mins(n);return n?Math.floor(n/60)+":"+String(n%60).padStart(2,"0"):zeroValue;}
 function parseInput(s){if(!s.trim())return null;const m=s.trim().match(/^(\d{1,2}):([0-5]\d)$/);if(!m)return NaN;const h=Number(m[1]),mm=Number(m[2]);if(h>24||(h===24&&mm>0))return NaN;return h*60+mm;}
+function logDurationFields(control){return {hours:control.querySelector("[data-hours]"),minutes:control.querySelector("[data-minutes]")};}
+function readLogDuration(control){
+  const fields=logDurationFields(control),hours=fields.hours.value.trim(),minutes=fields.minutes.value.trim();
+  const hoursError=/^\d{0,2}$/.test(hours)&&Number(hours)<=24?"":"Enter whole hours from 0 to 24.";
+  let minutesError=/^\d{0,2}$/.test(minutes)&&Number(minutes)<=59?"":"Enter minutes from 0 to 59.";
+  if(!hoursError&&!minutesError&&Number(hours)===24&&Number(minutes)>0)minutesError="For 24 hours, minutes must be 00.";
+  return {value:hoursError||minutesError?NaN:hours===""&&minutes===""?null:Number(hours)*60+Number(minutes),hoursError,minutesError};
+}
+function validateLogDuration(control){
+  const result=readLogDuration(control),fields=logDurationFields(control);
+  for(const part of ["hours","minutes"]){
+    const error=result[part+"Error"],input=fields[part];
+    input.setCustomValidity(error);
+    if(error)input.setAttribute("aria-invalid","true");else input.removeAttribute("aria-invalid");
+  }
+  return result.value;
+}
+function setLogDuration(control,value){
+  const total=mins(value),fields=logDurationFields(control);
+  fields.hours.value=String(Math.floor(total/60));fields.minutes.value=String(total%60).padStart(2,"0");
+  validateLogDuration(control);
+}
+function logDurationSnapshot(control){const fields=logDurationFields(control);return JSON.stringify([fields.hours.value,fields.minutes.value]);}
 function datePretty(s,opts={weekday:"long",day:"numeric",month:"long",year:"numeric"}){return new Intl.DateTimeFormat("en-IN",opts).format(new Date(s+"T00:00:00"));}
 function moveDate(s,n){const d=new Date(s+"T00:00:00Z");d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);}
 function weekInputValue(dateString){const d=new Date(dateString+"T00:00:00Z"),monday=new Date(d);monday.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));const thursday=new Date(monday);thursday.setUTCDate(monday.getUTCDate()+3);const year=thursday.getUTCFullYear(),jan4=new Date(Date.UTC(year,0,4)),firstMonday=new Date(jan4);firstMonday.setUTCDate(jan4.getUTCDate()-((jan4.getUTCDay()+6)%7));const week=Math.round((monday-firstMonday)/604800000)+1;return year+"-W"+String(week).padStart(2,"0");}
@@ -26,13 +49,23 @@ async function focusLogUpdated(session){
  if(state.page==="dashboard"){render();return;}
  if(state.page==="streak"){StudyStreak.refresh();return;}
  if(state.page!=="log"||state.date!==session.date)return;
- const form=$("#dayForm"),input=document.querySelector('[data-activity="'+session.activityId+'"]');
- if(!form||!input)return;
+ const form=$("#dayForm"),control=form?.querySelector('[data-activity="'+session.activityId+'"]');
+ if(!form||!control)return;
+ // Apply timer updates after a save has established the latest stored totals.
+ if(form.pendingSave){
+  try{await form.pendingSave;}catch{/* The save handler displays the error. */}
+  if(form.isConnected&&state.page==="log"&&state.date===session.date)return focusLogUpdated(session);
+  return;
+ }
+ const saveVersion=form.saveVersion,refreshVersion=Number(control.dataset.focusVersion||0)+1;
+ control.dataset.focusVersion=String(refreshVersion);
  try{
   const latest=await request("/api/day?date="+encodeURIComponent(session.date));
   if(!form.isConnected||state.page!=="log"||state.date!==session.date)return;
-  const value=parseInput(input.value),total=Number(latest.times[session.activityId]||0),delta=total-Number(input.dataset.savedMinutes||0);
-  if(!Number.isNaN(value)){input.value=fmtInput(Number(value||0)+delta,"0:00");input.dataset.savedMinutes=String(total);}
+  if(refreshVersion!==Number(control.dataset.focusVersion))return;
+  if(saveVersion!==form.saveVersion)return focusLogUpdated(session);
+  const value=readLogDuration(control).value,total=Number(latest.times[session.activityId]||0),delta=total-Number(control.dataset.savedMinutes||0);
+  if(!Number.isNaN(value)){setLogDuration(control,Number(value||0)+delta);control.dataset.savedMinutes=String(total);}
   $("#savedMark").textContent="Focus session added";
  }catch(error){toast("Focus saved. Reload the Daily Log to see the updated total.");}
 }
@@ -227,12 +260,66 @@ function drawMetricLineChart(canvas,data){
  c.fillStyle="#b2c3d4";c.font="600 10px Arial, sans-serif";c.textAlign="center";c.textBaseline="top";const every=n>10?Math.ceil(n/7):1;data.forEach((point,i)=>{if(i%every===0||i===n-1)c.fillText(point.label,xAt(i),height-p.b+8);});
 }
 async function renderLog(){
- const d=await request("/api/day?date="+encodeURIComponent(state.date)),acts=d.activities,groups=["Study","Mobile","Sleep","Work","Other"];
- if(state.page!=="log")return;
- const grouped=groups.map(g=>[g,acts.filter(a=>a.group===g)]).filter(x=>x[1].length);let form="";
- for(const [group,list] of grouped){form+='<section class="activity-group"><h3 class="group-heading"><i class="group-color" style="background:'+groupColor(group)+'"></i>'+esc(group)+'</h3>';for(const a of list)form+='<div class="activity-row"><div><div class="activity-name">'+esc(a.name)+'</div><div class="activity-group-name">'+esc(group)+'</div></div><input class="time-input" type="text" inputmode="numeric" placeholder="0:00" aria-label="'+esc(a.name)+' time" data-activity="'+esc(a.id)+'" data-saved-minutes="'+Number(d.times[a.id]||0)+'" value="'+esc(fmtInput(d.times[a.id],"0:00"))+'"><span class="row-hint">hours : minutes</span></div>';form+='</section>';}
- content.innerHTML='<div class="page-heading"><div><p class="eyebrow">A SMALL DAILY CHECK-IN</p><h1>Daily log</h1><p>Enter the time you spent on each activity.</p></div>'+dateControl("One entry per day")+'</div><section class="log-panel"><div class="log-toolbar"><strong>'+esc(datePretty(state.date))+'</strong><span>Use hours:minutes, for example 2:30</span></div><form id="dayForm">'+form+'<label class="field notes-field">Notes <textarea name="notes" maxlength="2000" placeholder="Anything you want to remember about today?">'+esc(d.notes)+'</textarea></label><div class="log-footer"><button class="button button-primary" type="submit">Save daily log <span>→</span></button><span id="savedMark" class="saved-mark"></span><small>Changes update your graphs automatically.</small></div></form></section>';
- document.querySelectorAll("[data-activity]").forEach(input=>input.addEventListener("input",()=>{const v=parseInput(input.value);input.setCustomValidity(Number.isNaN(v)?"Use hours:minutes from 0:00 to 24:00.":"");}));hookDate();$("#dayForm").addEventListener("submit",async e=>{e.preventDefault();const times={};let bad=false;document.querySelectorAll("[data-activity]").forEach(input=>{const v=parseInput(input.value);if(Number.isNaN(v)){input.setCustomValidity("Use hours:minutes from 0:00 to 24:00.");input.reportValidity();bad=true;}else{input.setCustomValidity("");if(Number(v||0)!==Number(input.dataset.savedMinutes||0))times[input.dataset.activity]=v;}});if(bad)return;const button=e.currentTarget.querySelector('button[type="submit"]');button.disabled=true;const submittedValues=new Map([...document.querySelectorAll("[data-activity]")].map(input=>[input.dataset.activity,input.value]));try{const saved=await request("/api/day",{method:"PUT",body:JSON.stringify({date:state.date,times,notes:e.currentTarget.elements.notes.value})});document.querySelectorAll("[data-activity]").forEach(input=>{const total=Number(saved.log.times[input.dataset.activity]||0);if(input.value===submittedValues.get(input.dataset.activity))input.value=fmtInput(total,"0:00");input.dataset.savedMinutes=String(total);});$("#savedMark").textContent="Saved just now";toast("Daily log saved.");}catch(x){toast(x.message,true);}finally{button.disabled=false;}});
+  const date=state.date,ownerId=state.user.id,version=++logRenderVersion;
+  const isCurrentRender=()=>state.page==="log"&&state.date===date&&state.user?.id===ownerId&&version===logRenderVersion;
+  let d;
+  try{d=await request("/api/day?date="+encodeURIComponent(date));}
+  catch(error){if(isCurrentRender())throw error;return;}
+  if(!isCurrentRender())return;
+  const groups=["Study","Mobile","Sleep","Work","Other"];
+  const grouped=groups.map(group=>[group,d.activities.filter(activity=>activity.group===group)]).filter(([,activities])=>activities.length);
+  const sections=grouped.map(([group,activities])=>{
+    const rows=activities.map(activity=>{
+      const total=mins(d.times[activity.id]),name=esc(activity.name);
+      return `<div class="activity-row">
+        <div><div class="activity-name">${name}</div><div class="activity-group-name">${esc(group)}</div></div>
+        <div class="duration-input" role="group" aria-label="${name} time" data-activity="${esc(activity.id)}" data-saved-minutes="${total}">
+          <label class="duration-part"><span class="duration-label">Hours</span><input class="time-input" type="text" inputmode="numeric" maxlength="2" pattern="[0-9]*" autocomplete="off" aria-label="${name} hours" data-hours value="${Math.floor(total/60)}"></label>
+          <span class="duration-separator" aria-hidden="true">:</span>
+          <label class="duration-part"><span class="duration-label">Minutes</span><input class="time-input" type="text" inputmode="numeric" maxlength="2" pattern="[0-9]*" autocomplete="off" aria-label="${name} minutes" data-minutes value="${String(total%60).padStart(2,"0")}"></label>
+        </div>
+      </div>`;
+    }).join("");
+    return '<section class="activity-group"><h3 class="group-heading"><i class="group-color" style="background:'+groupColor(group)+'"></i>'+esc(group)+'</h3>'+rows+'</section>';
+  }).join("");
+  content.innerHTML='<div class="page-heading"><div><p class="eyebrow">A SMALL DAILY CHECK-IN</p><h1>Daily log</h1><p>Enter the time you spent on each activity.</p></div>'+dateControl("One entry per day")+'</div><section class="log-panel"><div class="log-toolbar"><strong>'+esc(datePretty(date))+'</strong><span>Enter hours and minutes separately, for example 2 hours and 30 minutes.</span></div><form id="dayForm">'+sections+'<label class="field notes-field">Notes <textarea name="notes" maxlength="2000" placeholder="Anything you want to remember about today?">'+esc(d.notes)+'</textarea></label><div class="log-footer"><button class="button button-primary" type="submit">Save daily log <span>→</span></button><span id="savedMark" class="saved-mark"></span><small>Changes update your graphs automatically.</small></div></form></section>';
+  const form=$("#dayForm"),controls=[...form.querySelectorAll("[data-activity]")];
+  form.pendingSave=null;form.saveVersion=0;
+  const isCurrent=()=>form.isConnected&&state.page==="log"&&state.date===date&&state.user?.id===ownerId;
+  for(const control of controls){
+    for(const input of Object.values(logDurationFields(control))){
+      input.addEventListener("input",()=>validateLogDuration(control));
+      input.addEventListener("focus",()=>input.select());
+    }
+  }
+  hookDate();
+  form.addEventListener("submit",async event=>{
+    event.preventDefault();
+    const button=form.querySelector('button[type="submit"]');
+    if(button.disabled||!isCurrent())return;
+    const times={};let invalid=false;
+    for(const control of controls){
+      const value=validateLogDuration(control);
+      if(Number.isNaN(value))invalid=true;
+      else if(Number(value||0)!==Number(control.dataset.savedMinutes||0))times[control.dataset.activity]=value;
+    }
+    if(invalid){form.reportValidity();return;}
+    const submittedValues=new Map(controls.map(control=>[control.dataset.activity,logDurationSnapshot(control)]));
+    button.disabled=true;
+    try{
+      form.saveVersion++;
+      form.pendingSave=request("/api/day",{method:"PUT",body:JSON.stringify({date,times,notes:form.elements.notes.value})});
+      const saved=await form.pendingSave;
+      if(!isCurrent())return;
+      for(const control of controls){
+        const total=Number(saved.log.times[control.dataset.activity]||0);
+        if(logDurationSnapshot(control)===submittedValues.get(control.dataset.activity))setLogDuration(control,total);
+        control.dataset.savedMinutes=String(total);
+      }
+      form.querySelector("#savedMark").textContent="Saved just now";toast("Daily log saved.");
+    }catch(error){if(isCurrent())toast(error.message,true);}
+    finally{form.pendingSave=null;button.disabled=false;}
+  });
 }
 function renderLogout(){
   content.innerHTML='<section class="logout-screen"><div class="logout-mark" aria-hidden="true">↪</div><p class="eyebrow">SIGN OUT</p><h1>Log out of StudyOrbit?</h1><p>Your tracked time and schedule are saved to your account. You can sign in again anytime.</p><div class="logout-actions"><button class="button logout-cancel" id="cancelLogout" type="button">No, stay logged in</button><button class="button logout-confirm" id="confirmLogout" type="button">Yes, log out <span>→</span></button></div></section>';
