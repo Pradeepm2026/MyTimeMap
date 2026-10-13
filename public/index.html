@@ -12,6 +12,8 @@
   <link rel="stylesheet" href="/my-forms.css">
   <link rel="stylesheet" href="/how-to-use.css">
   <link rel="stylesheet" href="/welcome.css">
+  <link rel="stylesheet" href="/theme.css">
+  <script src="/theme.js"></script>
   <link rel="preload" as="image" href="/timemap-login-bg.png">
   <script src="/focus-timer.js" defer></script>
   <script src="/study-streak.js" defer></script>
@@ -114,6 +116,10 @@
       <header class="topbar">
         <div class="breadcrumb"><span>My workspace</span><b>/</b><strong id="pageCrumb">Dashboard</strong></div>
         <div class="top-actions">
+          <button class="theme-toggle" id="themeToggle" type="button" title="Switch to dark mode" aria-label="Switch to dark mode" aria-pressed="false">
+            <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.5 13Z"/></svg>
+            <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+          </button>
           <span class="local-badge"><i></i>Personal space</span>
           <button class="header-streak" data-nav="streak" type="button" title="Study streak" aria-label="Study streak" aria-controls="content">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path fill="currentColor" fill-opacity=".18" d="M13 2c1 5-4 6-4 10 0 1 .4 2 1 2.5-3-.5-4-2.5-3-5.5-3 3-4 5-3 8a8.4 8.4 0 0 0 16-3c0-4-3-7-7-12Z"/></svg>

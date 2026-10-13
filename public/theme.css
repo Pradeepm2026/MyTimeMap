@@ -1,0 +1,33 @@
+.theme-toggle{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;padding:10px;border:1px solid #806728;border-radius:12px;background:#241f13;color:#ead080;cursor:pointer}.theme-toggle svg{width:22px;height:22px}.theme-toggle:hover{background:#3b321a;border-color:#d8b963}.theme-toggle:focus-visible{outline:2px solid #f1d484;outline-offset:3px}.theme-toggle .theme-sun{display:none}html[data-theme="dark"] .theme-toggle .theme-moon{display:none}html[data-theme="dark"] .theme-toggle .theme-sun{display:block}
+/* Theme colors are scoped to the signed-in workspace. */
+html[data-theme="dark"] .app-shell{color-scheme:dark;--ink:#e4ede9;--muted:#a7bcb2;--line:#344a41;--paper:#182a24;--canvas:#0d1915;--mint:#254238;--shadow:0 12px 32px #0003;background:var(--canvas);color:var(--ink);min-height:100vh}
+html[data-theme="dark"] .app-shell .main-area{background:radial-gradient(ellipse at top right,#1a302580,transparent 50%),var(--canvas)}
+html[data-theme="dark"] .app-shell :is(.period-panel,.log-panel,.schedule-panel,.settings-panel,.forms-editor,.form-entry,.forms-empty,.how-card,.streak-stat,.streak-calendar-card,.streak-detail-card,.focus-today,.focus-recent,.focus-success,.logout-screen){background:#182a24;border-color:#344a41;color:#e4ede9;box-shadow:0 12px 30px #0002}
+html[data-theme="dark"] .app-shell :is(.stat-card,.activity-group,.activity-row,.activity-manage-row,.how-index a,.settings-note,.how-tip,.streak-rules,.focus-heading-pill,.focus-reset-check){background:#20372d;border-color:#3b5146;color:#dae8df}
+html[data-theme="dark"] .app-shell :is(h1,h2,h3,.section-title,.activity-name,.group-heading,.stat-value,.stat-top,.field,.forms-editor label,.form-entry dd,.how-card li,.how-card h2,.streak-stat-value,.streak-detail-total,.streak-subject-heading,.focus-totals strong){color:#e4ede9}
+html[data-theme="dark"] .app-shell :is(.page-heading p,.section-subtitle,.activity-group-name,.duration-label,.duration-separator,.row-hint,.stat-foot,.forms-help,.forms-editor small,.form-entry dt,.form-notes,.forms-empty p,.how-card header p,.how-tip p,.streak-detail-date,.streak-detail-note,.streak-stat p,.streak-weekdays,.streak-legend,.focus-today p,.focus-recent small,.focus-rhythm,.log-footer small){color:#b0c5b9}
+html[data-theme="dark"] .app-shell .content :is(input,select,textarea){background:#101f1a;color:#edf5ef;border-color:#648172;box-shadow:none;color-scheme:dark}
+html[data-theme="dark"] .app-shell .content :is(input,textarea)::placeholder{color:#9eb4a7;opacity:1}
+html[data-theme="dark"] .app-shell .content :is(input,select,textarea):focus{border-color:#e1c16c;outline:2px solid #e1c16c55;outline-offset:1px}
+html[data-theme="dark"] .app-shell :is(.date-controls button,.how-open,.streak-arrow,.streak-today-button,.logout-cancel){background:#294637;color:#e5d391;border-color:#526e5b}
+html[data-theme="dark"] .app-shell :is(.period-summary-heading,.period-panel-heading,.log-toolbar,.log-footer,.form-notes,.form-entry dl,.activity-list){border-color:#3b5146}
+html[data-theme="dark"] .app-shell :is(.log-toolbar strong,.period-summary h2,.period-summary-heading h2,.focus-recent h2,.focus-today h2){color:#e4ede9}
+html[data-theme="dark"] .app-shell :is(.log-toolbar span,.date-caption,.period-summary-heading p,.period-panel-heading p){color:#b0c5b9}
+html[data-theme="dark"] .app-shell :is(.how-guide,.forms-page){color:#e4ede9;--forms-ink:#e4ede9}
+html[data-theme="dark"] .app-shell :is(.form-open,.how-index a,.saved-mark){color:#9ee5bb}
+html[data-theme="dark"] .app-shell .form-entry-actions button{color:#cfdfd4}
+html[data-theme="dark"] .app-shell :is(.form-entry-actions button[data-delete],.forms-error,.form-error,.remove-button){color:#ffaca4}
+html[data-theme="dark"] .app-shell :is(.form-status,.how-number,.streak-stat-tag){background:#443c24;color:#f0d889}
+html[data-theme="dark"] .app-shell .how-tip strong{color:#e5c876}
+html[data-theme="dark"] .app-shell .progress-track{background:#3a5146}
+html[data-theme="dark"] .app-shell .streak-level-0{background:#20362c;border-color:#3a5445;color:#b9cdbf}
+html[data-theme="dark"] .app-shell .streak-level-1{background:#2c5140;color:#d8edde}
+html[data-theme="dark"] .app-shell .streak-level-2{background:#34774f;color:#f0f7f0}
+html[data-theme="dark"] .app-shell .streak-level-3{background:#409057;color:#fff}
+html[data-theme="dark"] .app-shell .streak-day :is(.streak-day-time,.streak-day-top){color:inherit}
+html[data-theme="dark"] .app-shell .streak-stat-icon{background:#304d3c;color:#e1d08b}
+html[data-theme="dark"] .app-shell .forms-actions .button:not(.button-primary){background:#324c3e;color:#e5eee7}
+html[data-theme="dark"] .app-shell :is(.streak-detail-total strong,.streak-subject-heading span,.streak-subject-heading strong,.focus-recent li strong,.focus-recent li b){color:#e0eee4}
+html[data-theme="dark"] .app-shell :is(.streak-detail-total>span,.streak-day-status,.streak-subject-heading small,.streak-history-note,.streak-detail-empty p,.streak-no-study p,.streak-rules p,.focus-totals span,.focus-empty p,.focus-empty small){color:#b0c5b9}
+html[data-theme="dark"] .app-shell :is(.streak-day-status.has-study,.focus-success button){color:#9ee5bb}
+@media(max-width:760px){.top-actions{gap:8px}.theme-toggle{width:40px;height:40px;flex-basis:40px}.breadcrumb{min-width:0}.breadcrumb strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
