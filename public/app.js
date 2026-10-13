@@ -230,8 +230,8 @@ function monthSelector(){
  requestAnimationFrame(()=>{
    if(!isCurrent())return;
    drawChart($("#dailyChart"),selectedDay,"activityBar",d.dailyLegend);
-   drawMetricLineChart($("#weeklyChart"),selectedWeek,{cutoff:d.today});
-   drawMetricLineChart($("#monthlyChart"),selectedMonth,{cutoff:d.today});
+   drawMetricLineChart($("#weeklyChart"),selectedWeek,{cutoff:d.today,betweenDates:true});
+   drawMetricLineChart($("#monthlyChart"),selectedMonth,{cutoff:d.today,betweenDates:true});
  });
 }
 function chartCard(title,sub,id,series,totals,legend){
@@ -263,7 +263,7 @@ function chartCard(title,sub,id,series,totals,legend){
  }
  c.fillStyle="#b2c3d4";c.font="600 10px Arial, sans-serif";c.textAlign="center";c.textBaseline="top";const every=n>10?Math.ceil(n/7):1;data.forEach((d,i)=>{if(i%every===0||i===n-1)c.fillText(d.label,xAt(i),h-p.b+6);});
 }function groupColor(g){return({Study:"#3978f6",Mobile:"#f27b54",Sleep:"#9271d5",Work:"#e0a441",Other:"#6c8798"})[g]||"#6c8798";}
-function drawMetricLineChart(canvas,data,{cutoff=null,showRanges=false}={}){
+function drawMetricLineChart(canvas,data,{cutoff=null,showRanges=false,betweenDates=false}={}){
   if(!canvas)return;
   const rect=canvas.getBoundingClientRect();
   if(rect.width<=0||rect.height<=0)return;
@@ -278,7 +278,10 @@ function drawMetricLineChart(canvas,data,{cutoff=null,showRanges=false}={}){
   const included=data.map((point,index)=>({point,index})).filter(({point})=>!cutoff||(point.date||point.start)<=cutoff);
   const values=included.flatMap(({point})=>series.map(item=>hours(point,item.key)));
   const step=Math.max(1,Math.ceil(Math.max(1,...values)/4)),max=step*4;
-  const xAt=index=>p.l+(data.length<=1?plotWidth/2:index*plotWidth/(data.length-1));
+  // Dates mark day boundaries; each day's value sits midway between them.
+  const intervalCount=Math.max(1,betweenDates?data.length:data.length-1);
+  const axisXAt=index=>p.l+index*plotWidth/intervalCount;
+  const xAt=index=>betweenDates?axisXAt(index+.5):data.length<=1?p.l+plotWidth/2:axisXAt(index);
   const yAt=value=>p.t+plotHeight-(value/max)*plotHeight;
   c.font="600 10px Arial, sans-serif";c.textBaseline="middle";c.textAlign="right";c.lineWidth=.8;
   for(let i=0;i<=4;i++){
@@ -308,17 +311,22 @@ function drawMetricLineChart(canvas,data,{cutoff=null,showRanges=false}={}){
     c.fillText(included.length?"Saved time will appear here.":"Data will appear as days begin.",p.l+plotWidth/2,p.t+plotHeight/2+12,plotWidth);
   }
   c.textAlign="center";c.textBaseline="top";
-  const labelWidth=Math.max(1,Math.min(72,plotWidth/Math.max(1,data.length-1)-4));
+  const labelWidth=Math.max(1,Math.min(72,plotWidth/intervalCount-4));
   data.forEach((point,index)=>{
     const future=cutoff&&(point.date||point.start)>cutoff;
     c.fillStyle=future?"#8297aa":"#c6d5e2";c.font="600 10px Arial, sans-serif";
-    c.fillText(point.label,xAt(index),height-p.b+8,labelWidth);
+    c.fillText(point.label,betweenDates?axisXAt(index):xAt(index),height-p.b+8,labelWidth);
     if(showRanges&&point.start&&point.end){
       const first=Number(point.start.slice(8,10)),last=Number(point.end.slice(8,10));
       c.fillStyle="#9eafbf";c.font="10px Arial, sans-serif";
       c.fillText(first===last?String(first):first+"–"+last,xAt(index),height-p.b+23,labelWidth);
     }
   });
+  if(betweenDates&&data.length){
+    const nextDate=moveDate(data[data.length-1].date,1);
+    c.fillStyle=cutoff&&nextDate>cutoff?"#8297aa":"#c6d5e2";c.font="600 10px Arial, sans-serif";
+    c.fillText(datePretty(nextDate,{day:"numeric",month:"short"}),axisXAt(data.length),height-p.b+8,labelWidth);
+  }
   const summary=included.map(({point})=>point.label+": "+series.map(item=>item.key+" "+fmtTime(hours(point,item.key)*60)).join(", ")).join("; ");
   canvas.setAttribute("role","img");
   canvas.setAttribute("aria-label",(canvas.id==="monthlyChart"?"Monthly":"Weekly")+" time chart. "+(summary||"This period has not started yet."));
