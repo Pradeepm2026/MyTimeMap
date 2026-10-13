@@ -1,7 +1,6 @@
 "use strict";
 const http=require("node:http"),fs=require("node:fs"),path=require("node:path"),crypto=require("node:crypto"),{MongoClient}=require("mongodb");
 const {createFocusService,createFocusRepository}=require("./lib/focus-timer");
-const {buildWeeklyInsights}=require("./lib/weekly-insights");
 const {buildStudyStreak}=require("./lib/study-streak");
 try{process.loadEnvFile(path.join(__dirname,".env"));}catch(error){if(error.code!=="ENOENT")throw error;}
 const ROOT=__dirname,PUBLIC=path.join(ROOT,"public"),IS_VERCEL=process.env.VERCEL==="1",DATA_DIR=process.env.DATA_DIR?path.resolve(process.env.DATA_DIR):path.join(ROOT,"data"),DB_FILE=path.join(DATA_DIR,"mytimemap.json");
@@ -69,11 +68,9 @@ function totals(userId,from,to){const acts=activities(userId,true),logs=db.logs.
 function label(s,opts){return new Intl.DateTimeFormat("en-IN",{timeZone:"UTC",...opts}).format(dt(s));}
 function weekDaySummary(userId,date,acts){
   const log=getLog(userId,date);
-  const recorded=acts.filter(activity=>Object.hasOwn(log.times||{},activity.id)&&log.times[activity.id]!=null&&Number.isFinite(Number(log.times[activity.id])));
   return{
     label:label(date,{day:"numeric",month:"short"}),date,
-    study:totalGroup(log,acts,"Study"),mobile:totalGroup(log,acts,"Mobile"),sleep:totalGroup(log,acts,"Sleep"),
-    logged:recorded.length>0,studyLogged:recorded.some(activity=>activity.group==="Study"),mobileLogged:recorded.some(activity=>activity.group==="Mobile")
+    study:totalGroup(log,acts,"Study"),mobile:totalGroup(log,acts,"Mobile"),sleep:totalGroup(log,acts,"Sleep")
   };
 }
 function dashboard(u,date,monthValue=date.slice(0,7),weekValue=date){
@@ -84,12 +81,11 @@ function dashboard(u,date,monthValue=date.slice(0,7),weekValue=date){
   const palettes={Study:["#3978f6","#39a27b","#9271d5","#2499a8","#bf6aa5","#739543"],Mobile:["#f27b54","#d6a02b","#427e9c","#d45d70","#6b9d65","#8c77bd"]},paletteIndex={Study:0,Mobile:0};
   const dailyLegend=dailyActivities.map(a=>{const i=paletteIndex[a.group]++;return{id:a.id,name:a.name,group:a.group,color:palettes[a.group][i%palettes[a.group].length]};});
   for(let i=13;i>=0;i--){const d=plus(date,-i),l=getLog(u.id,d),activityValues=Object.fromEntries(dailyActivities.map(a=>[a.id,Number(l.times?.[a.id]||0)]));daily.push({label:label(d,{day:"2-digit",month:"short"}),date:d,study:totalGroup(l,acts,"Study"),mobile:totalGroup(l,acts,"Mobile"),activityValues});}
-  const currentDate=today(),comparisonDays=Array.from({length:14},(_,index)=>weekDaySummary(u.id,plus(ws,index-7),acts));
-  const selectedWeekDays=comparisonDays.slice(7),weeklyInsights=buildWeeklyInsights({start:ws,today:currentDate,days:comparisonDays});
+  const currentDate=today(),selectedWeekDays=Array.from({length:7},(_,index)=>weekDaySummary(u.id,plus(ws,index),acts));
   const weekly=[];for(let i=7;i>=0;i--){const st=plus(ws,-7*i),en=weekEnd(st),t=totals(u.id,st,en);weekly.push({label:label(st,{day:"2-digit",month:"short"}),start:st,end:en,study:t.study,mobile:t.mobile,sleep:t.sleep});}
   const selectedMonthWeeks=[],monthDayCount=Number(me.slice(8,10));for(let startDay=1,weekNumber=1;startDay<=monthDayCount;startDay+=7,weekNumber++){const periodStart=plus(ms,startDay-1),periodEnd=plus(ms,Math.min(startDay+6,monthDayCount)-1),t=totals(u.id,periodStart,periodEnd);selectedMonthWeeks.push({label:"Week "+weekNumber,start:periodStart,end:periodEnd,study:t.study,mobile:t.mobile,sleep:t.sleep});}
   const monthly=[],yr=monthValue.slice(0,4);for(let m=0;m<12;m++){const st=yr+"-"+String(m+1).padStart(2,"0")+"-01",d=new Date(st+"T00:00:00Z");d.setUTCMonth(d.getUTCMonth()+1);const t=totals(u.id,st,plus(key(d),-1));monthly.push({label:new Intl.DateTimeFormat("en",{month:"short",timeZone:"UTC"}).format(dt(st)),study:t.study,mobile:t.mobile,sleep:t.sleep,loggedDays:t.loggedDays,studyAvg:t.loggedDays?Math.round(t.study/t.loggedDays):0,mobileAvg:t.loggedDays?Math.round(t.mobile/t.loggedDays):0,sleepAvg:t.loggedDays?Math.round(t.sleep/t.loggedDays):0});}
-  return{date,today:currentDate,selected,weeklyInsights,week:{...week,start:ws,end:we},month:{...month,start:ms,end:me,studyAvg:month.loggedDays?Math.round(month.study/month.loggedDays):0,mobileAvg:month.loggedDays?Math.round(month.mobile/month.loggedDays):0,sleepAvg:month.loggedDays?Math.round(month.sleep/month.loggedDays):0},goal:{study:u.profile.studyGoalMinutes,mobile:u.profile.mobileLimitMinutes},dailyLegend,dailySeries:daily,selectedWeekSeries:selectedWeekDays,selectedMonthWeeks,weeklySeries:weekly,monthlySeries:monthly};
+  return{date,today:currentDate,selected,week:{...week,start:ws,end:we},month:{...month,start:ms,end:me,studyAvg:month.loggedDays?Math.round(month.study/month.loggedDays):0,mobileAvg:month.loggedDays?Math.round(month.mobile/month.loggedDays):0,sleepAvg:month.loggedDays?Math.round(month.sleep/month.loggedDays):0},goal:{study:u.profile.studyGoalMinutes,mobile:u.profile.mobileLimitMinutes},dailyLegend,dailySeries:daily,selectedWeekSeries:selectedWeekDays,selectedMonthWeeks,weeklySeries:weekly,monthlySeries:monthly};
 }
 function auth(u,s){return{user:userPublic(u),activities:activities(u.id,false),csrfToken:s.csrf};}
 function need(req,res){const f=findSession(req);if(!f)err(res,401,"Please sign in again.");return f;}
