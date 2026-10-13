@@ -278,10 +278,10 @@ function drawMetricLineChart(canvas,data,{cutoff=null,showRanges=false,betweenDa
   const included=data.map((point,index)=>({point,index})).filter(({point})=>!cutoff||(point.date||point.start)<=cutoff);
   const values=included.flatMap(({point})=>series.map(item=>hours(point,item.key)));
   const step=Math.max(1,Math.ceil(Math.max(1,...values)/4)),max=step*4;
-  // Dates mark day boundaries; each day's value sits midway between them.
+  // Each day's segment ends at the next date boundary.
   const intervalCount=Math.max(1,betweenDates?data.length:data.length-1);
   const axisXAt=index=>p.l+index*plotWidth/intervalCount;
-  const xAt=index=>betweenDates?axisXAt(index+.5):data.length<=1?p.l+plotWidth/2:axisXAt(index);
+  const xAt=index=>betweenDates?axisXAt(index+1):data.length<=1?p.l+plotWidth/2:axisXAt(index);
   const yAt=value=>p.t+plotHeight-(value/max)*plotHeight;
   c.font="600 10px Arial, sans-serif";c.textBaseline="middle";c.textAlign="right";c.lineWidth=.8;
   for(let i=0;i<=4;i++){
@@ -294,7 +294,10 @@ function drawMetricLineChart(canvas,data,{cutoff=null,showRanges=false,betweenDa
       c.beginPath();
       included.forEach(({point,index},position)=>{
         const x=xAt(index),y=yAt(hours(point,item.key));
-        if(position===0)c.moveTo(x,y);else c.lineTo(x,y);
+        if(position===0){
+          if(betweenDates){c.moveTo(axisXAt(index),yAt(0));c.lineTo(x,y);}
+          else c.moveTo(x,y);
+        }else c.lineTo(x,y);
       });
       c.strokeStyle=item.color;c.lineWidth=3;c.lineJoin="round";c.lineCap="round";
       c.shadowColor=item.color;c.shadowBlur=8;c.stroke();c.shadowColor="transparent";c.shadowBlur=0;
