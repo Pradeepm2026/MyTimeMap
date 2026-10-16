@@ -113,6 +113,7 @@ function showAuth(mode="login",focus=true){
   if(focus)$("#authTitle").focus({preventScroll:true});
 }
 function showApp(data){
+  if(data.user.mustChangePassword){showRequiredPasswordChange(data);return;}
   sessionGeneration++;welcomeSession=data;enteringDashboard=false;
   state.user=data.user;$("#adminNav").classList.toggle("hidden",!state.user.isAdmin);state.activities=data.activities;state.csrf=data.csrfToken;state.returnPage="dashboard";
   history.replaceState(null,"","#dashboard");showScreen("app");
@@ -120,6 +121,14 @@ function showApp(data){
   state.page="dashboard";
   FocusTimer.connect({userId:state.user.id,request,toast,page:()=>state.page,activities:()=>state.activities,navigate,openLog:date=>{state.date=date;navigate("log");},onLogged:focusLogUpdated});
   navigate("dashboard");
+}
+function showRequiredPasswordChange(data){
+  deactivateWorkspace();sessionGeneration++;welcomeSession=null;state.user=data.user;state.csrf=data.csrfToken;
+  showScreen("auth");setAuthMode("change-password");history.replaceState(null,"","#password-change");
+  $("#authTitle").textContent="Choose your new password";$("#authEyebrow").textContent="SECURE YOUR ACCOUNT";$("#authHint").textContent="Replace the temporary password to finish recovery.";
+  const owner=data.user.id,finish=()=>{welcomeSession=null;sessionGeneration++;publicRoute("login",{replace:true});};
+  RecoveryUI.changePassword({container:$("#passwordChangeCard"),request,isCurrent:()=>state.view==="auth"&&state.authMode==="change-password"&&state.user?.id===owner,onLogout:finish,onDone:result=>{showApp(result);$("#passwordChangeCard").replaceChildren();toast("Password updated. Your account is ready.");}});
+  $("#authTitle").focus({preventScroll:true});
 }
 function publicRoute(route,{replace=false}={}){
   if(location.hash!=="#"+route)history[replace?"replaceState":"pushState"](null,"","#"+route);
@@ -144,7 +153,7 @@ async function enterDashboard(){
 function routePublicScreen({initial=false}={}){
   const route=location.hash.slice(1);
   if(["login","register","forgot","admin"].includes(route)){showAuth(route,!initial);return;}
-  if(route==="dashboard"){
+  if(route==="dashboard"||route==="password-change"){
     if(state.view==="app"&&state.user)return;
     showWelcome({discover:false,focus:false});enterDashboard();return;
   }
@@ -155,10 +164,14 @@ window.addEventListener("hashchange",()=>routePublicScreen());
 function setAuthMode(mode){
   state.authMode=mode;
   const forgot=mode==="forgot",login=mode==="login"||mode==="admin",password=$("#authForm [name=password]"),toggle=$("#passwordToggle");
+  const changing=mode==="change-password";
+  $("#passwordChangeCard").classList.toggle("hidden",!changing);
+  if(!changing)$("#passwordChangeCard").replaceChildren();
+  $("#adminLoginLink").classList.toggle("hidden",changing);
   $("#authError").textContent="";$("#authForm").reset();
-  $("#authForm").classList.toggle("hidden",forgot);
+  $("#authForm").classList.toggle("hidden",forgot||changing);
   $("#recoveryCard").classList.toggle("hidden",!forgot);
-  $(".auth-switch").classList.toggle("hidden",forgot||mode==="admin");
+  $(".auth-switch").classList.toggle("hidden",forgot||mode==="admin"||changing);
   $("#adminLoginLink").textContent=mode==="admin"?"← Back to user sign in":"Admin login →";
   $("#forgotLink").classList.toggle("hidden",mode!=="login");
   $("#legacyLoginNote").classList.toggle("hidden",mode!=="login");
@@ -188,7 +201,7 @@ $("#authForm").addEventListener("submit",async event=>{
     if(generation!==sessionGeneration)return;
     welcomeSession=data;updateWelcomeActions();
     if(navigation!==publicNavigationVersion||state.view!=="auth")return;
-    showApp(data);if(mode==="admin")navigate("admin");toast(login?"Welcome back.":"Your account is ready.");
+    showApp(data);if(mode==="admin"&&!data.user.mustChangePassword)navigate("admin");toast(data.user.mustChangePassword?"Set your own password to continue.":login?"Welcome back.":"Your account is ready.");
   }catch(error){if(navigation===publicNavigationVersion&&state.view==="auth")$("#authError").textContent=error.message;}
   finally{
     authenticating=false;$("#authSubmit").disabled=false;updateWelcomeActions();
@@ -418,6 +431,7 @@ async function renderSchedule(){
  document.querySelectorAll("[data-remove]").forEach(b=>b.addEventListener("click",async()=>{const a=state.activities.find(x=>x.id===b.dataset.remove);if(!a||!confirm("Remove "+a.name+" from your schedule? Old entries will stay in your history."))return;try{await request("/api/activities/"+encodeURIComponent(a.id),{method:"DELETE"});state.activities=state.activities.filter(x=>x.id!==a.id);toast("Activity removed from your schedule.");await renderSchedule();}catch(x){toast(x.message,true);}}));
  $("#goalForm").addEventListener("submit",async e=>{e.preventDefault();const a=parseInput(e.currentTarget.elements.study.value),b=parseInput(e.currentTarget.elements.mobile.value);if(Number.isNaN(a)||Number.isNaN(b)){toast("Use hours:minutes from 0:00 to 24:00.",true);return;}try{const r=await request("/api/profile",{method:"PUT",body:JSON.stringify({studyGoalMinutes:a,mobileLimitMinutes:b})});state.user.profile=r.profile;toast("Daily targets saved.");}catch(x){toast(x.message,true);}});
 }
+RecoveryUI.init({request,isCurrent:()=>state.view==="auth"&&state.authMode==="forgot"});
 routePublicScreen({initial:true});
 window.addEventListener("resize",()=>{if(state.view==="app"&&state.page==="dashboard")render();});
 

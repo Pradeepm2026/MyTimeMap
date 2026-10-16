@@ -19,8 +19,10 @@
   <script src="/study-streak.js" defer></script>
   <script src="/my-forms.js" defer></script>
   <script src="/how-to-use.js" defer></script>
-  <script src="/app.js?v=admin-login-2" defer></script>
-  <script src="/admin.js" defer></script>
+  <link rel="stylesheet" href="/recovery.css">
+  <script src="/recovery.js" defer></script>
+  <script src="/admin.js?v=recovery-1" defer></script>
+  <script src="/app.js?v=recovery-1" defer></script>
 </head>
 <body>
   <div id="welcomeView" class="welcome-screen welcome-enter">
@@ -88,9 +90,16 @@
           <span class="recovery-icon" aria-hidden="true">✦</span>
           <p class="recovery-label">ACCOUNT RECOVERY</p>
           <h3>Let’s get you back in.</h3>
-          <p>Password recovery is not configured for this account because there is no verified recovery email on file. To protect your time records, ask the person who manages this StudyOrbit installation to help reset access.</p>
+          <p>Send a request to the administrator. Contact them from your registered email to verify that the account belongs to you. No automatic email is sent.</p>
+          <form id="recoveryRequestForm">
+            <label class="field">Registered email<input name="email" type="email" autocomplete="email" required maxlength="254" placeholder="name@example.com"></label>
+            <label class="field">Message (optional)<textarea name="message" rows="3" maxlength="1000" placeholder="Describe the issue. Do not include any passwords."></textarea></label>
+            <p id="recoveryRequestStatus" role="status"></p>
+            <button class="button button-primary button-wide" type="submit">Request recovery</button>
+          </form>
           <button class="button recovery-back" id="recoveryBack" type="button">← Back to sign in</button>
         </section>
+        <section class="hidden" id="passwordChangeCard"></section>
         <p class="auth-note">Your schedule and entries stay in your own account.</p>
       </div>
     </section>

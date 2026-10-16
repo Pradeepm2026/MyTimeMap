@@ -3,6 +3,7 @@ const http=require("node:http"),fs=require("node:fs"),path=require("node:path"),
 const {createFocusService,createFocusRepository}=require("./lib/focus-timer");
 const {buildStudyStreak}=require("./lib/study-streak");
 const {createFormsService}=require("./lib/my-forms");
+const recovery=require("./lib/account-recovery");
 try{process.loadEnvFile(path.join(__dirname,".env"));}catch(error){if(error.code!=="ENOENT")throw error;}
 const ROOT=__dirname,PUBLIC=path.join(ROOT,"public"),IS_VERCEL=process.env.VERCEL==="1",DATA_DIR=process.env.DATA_DIR?path.resolve(process.env.DATA_DIR):path.join(ROOT,"data"),DB_FILE=path.join(DATA_DIR,"mytimemap.json");
 const PORT=Number(process.env.PORT||3000),HOST=process.env.HOST||(process.env.NODE_ENV==="production"?"0.0.0.0":"127.0.0.1"),SESSION_DAYS=14;
@@ -22,6 +23,15 @@ async function writeMongoChanges(before,after){
     for(const [id,item] of newByKey){
       const old=oldByKey.get(id);
       if(old&&JSON.stringify(old)===JSON.stringify(item))continue;
+      if(spec.name==="users"&&old){
+        const set={};for(const field of Object.keys(item))if(JSON.stringify(old[field])!==JSON.stringify(item[field]))set[field]=item[field];
+        // Credential version prevents overlapping resets from restoring old credentials.
+        const filter={_id:id};if("passwordVersion" in set)filter.passwordVersion=old.passwordVersion||{$exists:false};
+        if("recoveryRequest" in set){filter["recoveryRequest.id"]=old.recoveryRequest?.id||{$exists:false};if(old.recoveryRequest){filter["recoveryRequest.status"]=old.recoveryRequest.status;filter["recoveryRequest.resetAt"]=old.recoveryRequest.resetAt||{$exists:false};}}
+        const result=await collection.updateOne(filter,{$set:set});
+        if(!result.matchedCount)throw new Error("Account changed. Refresh and try again.");
+        continue;
+      }
       if(spec.name!=="logs"){operations.push({replaceOne:{filter:{_id:id},replacement:{...item,_id:id},upsert:true}});continue;}
       // Update only edited fields so another function's timer increment and
       // completion receipt survive unrelated manual log edits.
@@ -57,11 +67,11 @@ function send(res,status,obj,extra={}){res.writeHead(status,{"Content-Type":"app
 function err(res,status,msg){send(res,status,{error:msg});}
 function body(req){if(req.body&&typeof req.body==="object"&&!Buffer.isBuffer(req.body))return Promise.resolve(req.body);if(typeof req.body==="string"||Buffer.isBuffer(req.body)){try{return Promise.resolve(JSON.parse(String(req.body)||"{}"));}catch{return Promise.reject(Error("Invalid JSON"));}}return new Promise((resolve,reject)=>{let raw="",size=0;req.on("data",c=>{size+=c.length;if(size>1000000){reject(Error("too large"));req.destroy();}else raw+=c;});req.on("end",()=>{try{resolve(raw?JSON.parse(raw):{});}catch{reject(Error("Invalid JSON"));}});req.on("error",reject);});}
 function cookies(req){const out={};for(const p of (req.headers.cookie||"").split(";")){const i=p.indexOf("=");if(i>0)out[p.slice(0,i).trim()]=decodeURIComponent(p.slice(i+1).trim());}return out;}
-function findSession(req){const token=cookies(req).mtm_session;if(!token)return null;const h=crypto.createHash("sha256").update(token).digest("hex"),session=db.sessions.find(s=>s.tokenHash===h&&s.expiresAt>Date.now());if(!session)return null;const user=db.users.find(u=>u.id===session.userId);return user?{session,user}:null;}
+function findSession(req){const token=cookies(req).mtm_session;if(!token)return null;const h=crypto.createHash("sha256").update(token).digest("hex"),session=db.sessions.find(s=>s.tokenHash===h&&s.expiresAt>Date.now());if(!session)return null;const user=db.users.find(u=>u.id===session.userId);return user&&(session.passwordVersion||"")===(user.passwordVersion||"")&&(!user.mustChangePassword||user.temporaryPasswordExpiresAt>Date.now())?{session,user}:null;}
 function cookie(token,clear){return "mtm_session="+(clear?"":encodeURIComponent(token))+"; HttpOnly; SameSite=Lax; Path=/; Max-Age="+(clear?0:SESSION_DAYS*86400)+(process.env.NODE_ENV==="production"?"; Secure":"");}
-async function newSession(user){const token=crypto.randomBytes(32).toString("base64url"),csrf=crypto.randomBytes(24).toString("base64url");db.sessions=db.sessions.filter(s=>s.expiresAt>Date.now());const tokenHash=crypto.createHash("sha256").update(token).digest("hex");db.sessions.push({tokenHash,csrf,userId:user.id,expiresAt:Date.now()+SESSION_DAYS*86400000});await save();return{token,csrf,tokenHash};}
+async function newSession(user){const token=crypto.randomBytes(32).toString("base64url"),csrf=crypto.randomBytes(24).toString("base64url");db.sessions=db.sessions.filter(s=>s.expiresAt>Date.now());const tokenHash=crypto.createHash("sha256").update(token).digest("hex");db.sessions.push({tokenHash,csrf,userId:user.id,passwordVersion:user.passwordVersion||"",expiresAt:Date.now()+SESSION_DAYS*86400000});await save();return{token,csrf,tokenHash};}
 function isAdmin(u){return u.role==="admin"&&(u.email||"").toLowerCase()==="pradeepmauryasln02@gmail.com";}
-function userPublic(u){return{id:u.id,name:u.name,email:u.email||"",username:u.email?undefined:u.username,profile:u.profile,isAdmin:isAdmin(u)};}
+function userPublic(u){return{id:u.id,name:u.name,email:u.email||"",username:u.email?undefined:u.username,profile:u.profile,isAdmin:isAdmin(u),mustChangePassword:!!u.mustChangePassword};}
 function activities(userId,all){return db.activities.filter(a=>a.userId===userId&&(all||a.active!==false));}
 function defaults(userId){return [["Programming","Study"],["Aptitude","Study"],["Maths","Study"],["YouTube","Mobile"],["WhatsApp","Mobile"],["Chrome","Mobile"],["Sleep","Sleep"],["Work","Work"],["Other","Other"]].map(x=>({id:uid(),userId,name:x[0],group:x[1],color:COLORS[x[1]],active:true}));}
 function getLog(userId,date){return db.logs.find(x=>x.userId===userId&&x.date===date)||{userId,date,times:{},notes:""};}
@@ -96,11 +106,24 @@ function dashboard(u,date,monthValue=date.slice(0,7),weekValue=date){
   const monthly=[],yr=monthValue.slice(0,4);for(let m=0;m<12;m++){const st=yr+"-"+String(m+1).padStart(2,"0")+"-01",d=new Date(st+"T00:00:00Z");d.setUTCMonth(d.getUTCMonth()+1);const t=totals(u.id,st,plus(key(d),-1));monthly.push({label:new Intl.DateTimeFormat("en",{month:"short",timeZone:"UTC"}).format(dt(st)),study:t.study,mobile:t.mobile,sleep:t.sleep,loggedDays:t.loggedDays,studyAvg:t.loggedDays?Math.round(t.study/t.loggedDays):0,mobileAvg:t.loggedDays?Math.round(t.mobile/t.loggedDays):0,sleepAvg:t.loggedDays?Math.round(t.sleep/t.loggedDays):0});}
   return{date,today:currentDate,selected,week:{...week,start:ws,end:we},month:{...month,start:ms,end:me,studyAvg:month.loggedDays?Math.round(month.study/month.loggedDays):0,mobileAvg:month.loggedDays?Math.round(month.mobile/month.loggedDays):0,sleepAvg:month.loggedDays?Math.round(month.sleep/month.loggedDays):0},goal:{study:u.profile.studyGoalMinutes,mobile:u.profile.mobileLimitMinutes},dailyLegend,dailySeries:daily,selectedWeekSeries:selectedWeekDays,selectedMonthDays,weeklySeries:weekly,monthlySeries:monthly};
 }
-function auth(u,s){return{user:userPublic(u),activities:activities(u.id,false),csrfToken:s.csrf};}
+function auth(u,s){return{user:userPublic(u),activities:u.mustChangePassword?[]:activities(u.id,false),csrfToken:s.csrf};}
 function need(req,res){const f=findSession(req);if(!f)err(res,401,"Please sign in again.");return f;}
 function csrf(req,res,f){if(req.headers["x-csrf-token"]!==f.session.csrf){err(res,403,"Session check failed. Refresh and try again.");return false;}return true;}
 async function api(req,res,url){
   if(req.method==="GET"&&url.pathname==="/api/health")return send(res,200,{ok:true});
+  if(req.method==="POST"&&url.pathname==="/api/recovery-request"){
+    if(!recovery.allowRequest(req.socket.remoteAddress))return err(res,429,"Too many requests. Please wait before trying again.");
+    const b=await body(req),email=clean(b.email,254).toLowerCase();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return err(res,400,"Enter a valid email address.");
+    if(b.message!=null&&(typeof b.message!=="string"||b.message.length>1000))return err(res,400,"Keep the message within 1000 characters.");
+    const user=db.users.find(item=>(item.email||"").toLowerCase()===email),now=Date.now();
+    if(user&&!isAdmin(user)&&user.recoveryRequest?.status!=="pending"&&(!user.recoveryRequest||now-user.recoveryRequest.requestedAt>=15*60*1000)){
+      const previous=user.recoveryRequest;
+      user.recoveryRequest={id:uid(),status:"pending",message:(b.message||"").trim(),requestedAt:now};
+      try{await save();}catch(error){user.recoveryRequest=previous;throw error;}
+    }
+    return send(res,200,{message:recovery.publicMessage});
+  }
   if(req.method==="POST"&&url.pathname==="/api/register"){
     const b=await body(req),name=clean(b.name,60),email=clean(b.email,254).toLowerCase(),password=String(b.password||"");
     if(name.length<2)return err(res,400,"Enter your name (at least 2 characters).");
@@ -114,26 +137,56 @@ async function api(req,res,url){
     const b=await body(req),identifier=clean(b.email||b.username,254).toLowerCase(),u=db.users.find(x=>(x.email||"").toLowerCase()===identifier||(!x.email&&x.username===identifier));if(!u)return err(res,401,"Email or password is incorrect.");
     const h=crypto.pbkdf2Sync(String(b.password||""),u.salt,260000,64,"sha512");if(!crypto.timingSafeEqual(h,Buffer.from(u.passwordHash,"hex")))return err(res,401,"Email or password is incorrect.");
     if(url.pathname==="/api/admin/login"&&!isAdmin(u))return err(res,403,"This account does not have administrator access.");
+    if(u.mustChangePassword&&u.temporaryPasswordExpiresAt<=Date.now())return err(res,401,"Temporary password expired. Contact the administrator for a new one.");
     const s=await newSession(u);return send(res,200,auth(u,s),{"Set-Cookie":cookie(s.token,false)});
   }
   if(req.method==="GET"&&url.pathname==="/api/me"){const f=findSession(req);if(!f)return err(res,401,"Sign in to continue.");return send(res,200,auth(f.user,f.session));}
   const f=need(req,res);if(!f)return;const u=f.user;
+  if(req.method==="POST"&&url.pathname==="/api/change-password"){
+    if(!csrf(req,res,f))return;
+    const b=await body(req);
+    if(!recovery.matches(b.currentPassword,u))return err(res,403,"Current or temporary password is incorrect.");
+    if(!recovery.validPassword(b.newPassword))return err(res,400,"Choose a password of 12 to 128 characters.");
+    if(b.newPassword===b.currentPassword)return err(res,400,"Choose a different password from your temporary password.");
+    const previous={...u},oldSessions=db.sessions;
+    Object.assign(u,recovery.passwordFields(b.newPassword),{mustChangePassword:false,temporaryPasswordExpiresAt:null});
+    if(u.recoveryRequest?.status==="pending")u.recoveryRequest={...u.recoveryRequest,status:"resolved",resolvedAt:Date.now()};
+    db.sessions=db.sessions.filter(session=>session.userId!==u.id);
+    try{await save();}catch(error){Object.keys(u).forEach(key=>delete u[key]);Object.assign(u,previous);db.sessions=oldSessions;throw error;}
+    const session=await newSession(u);
+    return send(res,200,auth(u,session),{"Set-Cookie":cookie(session.token,false)});
+  }
+  if(u.mustChangePassword&&url.pathname!=="/api/logout")return err(res,403,"Set your own password before accessing your account.");
   if(url.pathname.startsWith("/api/admin/")){
     if(!isAdmin(u))return err(res,403,"Administrator access required.");
     if(req.method==="GET"&&url.pathname==="/api/admin/users")return send(res,200,{users:db.users.map(user=>({id:user.id,name:user.name,email:user.email||"",username:user.email?undefined:user.username,isAdmin:isAdmin(user)}))});
+    if(req.method==="GET"&&url.pathname==="/api/admin/recovery-requests")return send(res,200,{requests:db.users.filter(user=>user.recoveryRequest).map(user=>({userId:user.id,name:user.name,email:user.email,...user.recoveryRequest})).sort((a,b)=>b.requestedAt-a.requestedAt)});
+    if(req.method==="POST"&&url.pathname==="/api/admin/recovery-reject"){
+      if(!csrf(req,res,f))return;
+      const b=await body(req),target=db.users.find(user=>user.id===b.userId);
+      if(!target||target.recoveryRequest?.id!==b.requestId||target.recoveryRequest.status!=="pending")return err(res,409,"Request is no longer pending. Refresh the list.");
+      if(target.recoveryRequest.resetAt)return err(res,409,"A temporary password has already been issued. Wait for the user to finish recovery.");
+      const previous=target.recoveryRequest;target.recoveryRequest={...previous,status:"rejected",reviewedAt:Date.now(),reviewedBy:u.id};
+      try{await save();}catch(error){target.recoveryRequest=previous;throw error;}
+      return send(res,200,{ok:true});
+    }
     if(req.method==="POST"&&url.pathname==="/api/admin/reset-password"){
       if(!csrf(req,res,f))return;
       const b=await body(req),target=db.users.find(user=>user.id===b.userId);
       if(!target)return err(res,404,"User not found.");
       if(isAdmin(target))return err(res,400,"Admin passwords cannot be reset here.");
+      if(b.identityConfirmed!==true)return err(res,400,"Confirm that you verified the account owner's identity.");
+      if(b.requestId&&(target.recoveryRequest?.id!==b.requestId||target.recoveryRequest.status!=="pending"))return err(res,409,"Recovery request changed. Refresh the list.");
       if(typeof b.newPassword!=="string"||b.newPassword.length<12||b.newPassword.length>128)return err(res,400,"Use a new password of 12 to 128 characters.");
       if(typeof b.adminPassword!=="string"||b.adminPassword.length>128)return err(res,400,"Enter your admin password.");
       const check=crypto.pbkdf2Sync(b.adminPassword,u.salt,260000,64,"sha512");
       if(!crypto.timingSafeEqual(check,Buffer.from(u.passwordHash,"hex")))return err(res,403,"Admin password is incorrect.");
       const salt=crypto.randomBytes(16).toString("hex"),passwordHash=crypto.pbkdf2Sync(b.newPassword,salt,260000,64,"sha512").toString("hex");
-      const previous={salt:target.salt,passwordHash:target.passwordHash},oldSessions=db.sessions;
-      target.salt=salt;target.passwordHash=passwordHash;db.sessions=db.sessions.filter(session=>session.userId!==target.id);
-      try{await save();}catch(error){Object.assign(target,previous);db.sessions=oldSessions;throw error;}
+      const previous={...target},oldSessions=db.sessions;
+      Object.assign(target,{salt,passwordHash,passwordVersion:uid(),mustChangePassword:true,temporaryPasswordExpiresAt:Date.now()+24*60*60*1000});
+      if(target.recoveryRequest?.status==="pending")target.recoveryRequest={...target.recoveryRequest,resetAt:Date.now(),reviewedBy:u.id};
+      db.sessions=db.sessions.filter(session=>session.userId!==target.id);
+      try{await save();}catch(error){Object.keys(target).forEach(key=>delete target[key]);Object.assign(target,previous);db.sessions=oldSessions;throw error;}
       return send(res,200,{ok:true});
     }
     return err(res,404,"Admin endpoint not found.");
