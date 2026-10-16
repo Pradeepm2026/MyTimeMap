@@ -114,7 +114,7 @@ function showAuth(mode="login",focus=true){
 }
 function showApp(data){
   sessionGeneration++;welcomeSession=data;enteringDashboard=false;
-  state.user=data.user;state.activities=data.activities;state.csrf=data.csrfToken;state.returnPage="dashboard";
+  state.user=data.user;$("#adminNav").classList.toggle("hidden",!state.user.isAdmin);state.activities=data.activities;state.csrf=data.csrfToken;state.returnPage="dashboard";
   history.replaceState(null,"","#dashboard");showScreen("app");
   $("#userName").textContent=state.user.name;$("#userHandle").textContent=state.user.email||"@"+state.user.username;$("#avatar").textContent=(state.user.name[0]||"M").toUpperCase();
   state.page="dashboard";
@@ -143,7 +143,7 @@ async function enterDashboard(){
 }
 function routePublicScreen({initial=false}={}){
   const route=location.hash.slice(1);
-  if(["login","register","forgot"].includes(route)){showAuth(route,!initial);return;}
+  if(["login","register","forgot","admin"].includes(route)){showAuth(route,!initial);return;}
   if(route==="dashboard"){
     if(state.view==="app"&&state.user)return;
     showWelcome({discover:false,focus:false});enterDashboard();return;
@@ -154,39 +154,41 @@ $("#welcomeContinue").addEventListener("click",event=>{event.preventDefault();en
 window.addEventListener("hashchange",()=>routePublicScreen());
 function setAuthMode(mode){
   state.authMode=mode;
-  const forgot=mode==="forgot",password=$("#authForm [name=password]"),toggle=$("#passwordToggle");
+  const forgot=mode==="forgot",login=mode==="login"||mode==="admin",password=$("#authForm [name=password]"),toggle=$("#passwordToggle");
   $("#authError").textContent="";$("#authForm").reset();
   $("#authForm").classList.toggle("hidden",forgot);
   $("#recoveryCard").classList.toggle("hidden",!forgot);
-  $(".auth-switch").classList.toggle("hidden",forgot);
+  $(".auth-switch").classList.toggle("hidden",forgot||mode==="admin");
+  $("#adminLoginLink").textContent=mode==="admin"?"← Back to user sign in":"Admin login →";
   $("#forgotLink").classList.toggle("hidden",mode!=="login");
   $("#legacyLoginNote").classList.toggle("hidden",mode!=="login");
   $("#nameField").classList.toggle("hidden",mode!=="register");
-  $("#authSubmit").innerHTML=mode==="login"?'Sign in <span>→</span>':'Create account <span>→</span>';
-  $("#authTitle").textContent=forgot?"Forgot your password?":mode==="login"?"Sign in to your space":"Create your account";
-  $("#authEyebrow").textContent=forgot?"ACCOUNT RECOVERY":mode==="login"?"WELCOME BACK":"GET STARTED";
-  $("#authHint").textContent=forgot?"A secure way back to your account.":mode==="login"?"Pick up where you left off.":"Your schedule starts with you.";
+  $("#authSubmit").innerHTML=mode==="admin"?'Admin sign in <span>→</span>':login?'Sign in <span>→</span>':'Create account <span>→</span>';
+  $("#authTitle").textContent=mode==="admin"?"Admin sign in":forgot?"Forgot your password?":login?"Sign in to your space":"Create your account";
+  $("#authEyebrow").textContent=mode==="admin"?"ADMIN ACCESS":forgot?"ACCOUNT RECOVERY":login?"WELCOME BACK":"GET STARTED";
+  $("#authHint").textContent=mode==="admin"?"Sign in with your authorized administrator account.":forgot?"A secure way back to your account.":login?"Pick up where you left off.":"Your schedule starts with you.";
   document.querySelectorAll(".auth-switch button").forEach(b=>b.classList.toggle("active",b.dataset.mode===mode));
-  password.type="password";password.autocomplete=mode==="login"?"current-password":"new-password";
+  password.type="password";password.autocomplete=login?"current-password":"new-password";
   toggle.setAttribute("aria-label","Show password");toggle.setAttribute("aria-pressed","false");toggle.classList.remove("is-visible");
   $("#authForm [name=email]").placeholder=mode==="register"?"you@example.com":"name@example.com";
 }
 document.querySelectorAll(".auth-switch button").forEach(b=>b.addEventListener("click",()=>publicRoute(b.dataset.mode)));
+$("#adminLoginLink").addEventListener("click",event=>{event.preventDefault();publicRoute(state.authMode==="admin"?"login":"admin");});
 $("#forgotLink").addEventListener("click",()=>publicRoute("forgot"));
 $("#recoveryBack").addEventListener("click",()=>publicRoute("login"));
 $("#passwordToggle").addEventListener("click",()=>{const input=$("#authForm [name=password]"),button=$("#passwordToggle"),show=input.type==="password";input.type=show?"text":"password";button.setAttribute("aria-label",show?"Hide password":"Show password");button.setAttribute("aria-pressed",String(show));button.classList.toggle("is-visible",show);});
 $("#authForm").addEventListener("submit",async event=>{
   event.preventDefault();if($("#authSubmit").disabled)return;
-  const mode=state.authMode,navigation=publicNavigationVersion,generation=++sessionGeneration;
+  const mode=state.authMode,login=mode==="login"||mode==="admin",navigation=publicNavigationVersion,generation=++sessionGeneration;
   const form=new FormData(event.currentTarget),payload={email:form.get("email").trim(),password:form.get("password")};
   if(mode==="register")payload.name=form.get("name");
   $("#authError").textContent="";$("#authSubmit").disabled=true;authenticating=true;updateWelcomeActions();
   try{
-    const data=await request("/api/"+(mode==="login"?"login":"register"),{method:"POST",body:JSON.stringify(payload)});
+    const data=await request("/api/"+(mode==="admin"?"admin/login":login?"login":"register"),{method:"POST",body:JSON.stringify(payload)});
     if(generation!==sessionGeneration)return;
     welcomeSession=data;updateWelcomeActions();
     if(navigation!==publicNavigationVersion||state.view!=="auth")return;
-    showApp(data);toast(mode==="login"?"Welcome back.":"Your account is ready.");
+    showApp(data);if(mode==="admin")navigate("admin");toast(login?"Welcome back.":"Your account is ready.");
   }catch(error){if(navigation===publicNavigationVersion&&state.view==="auth")$("#authError").textContent=error.message;}
   finally{
     authenticating=false;$("#authSubmit").disabled=false;updateWelcomeActions();
@@ -194,10 +196,10 @@ $("#authForm").addEventListener("submit",async event=>{
   }
 });
 document.querySelectorAll("[data-nav]").forEach(b=>b.addEventListener("click",e=>{e.preventDefault();navigate(b.dataset.nav);}));
-function navigate(page){if(page==="logout"&&state.page!=="logout")state.returnPage=state.page;if(page==="log"){const today=new Date().toLocaleDateString("en-CA");if(state.date<moveDate(today,-1)||state.date>today)state.date=today;}state.page=page;$("#sidebar").classList.remove("open");$("#mobileMenu").setAttribute("aria-expanded","false");document.querySelectorAll(".nav-item, .header-streak").forEach(b=>{const active=b.dataset.nav===page;b.classList.toggle("active",active);if(active)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current");});$("#pageCrumb").textContent=({dashboard:"Dashboard",log:"Daily log",schedule:"My schedule",forms:"My Forms",help:"How to Use",focus:"Focus timer",streak:"Study streak",logout:"Logout"}[page]||page);render();}
+function navigate(page){if(page==="logout"&&state.page!=="logout")state.returnPage=state.page;if(page==="log"){const today=new Date().toLocaleDateString("en-CA");if(state.date<moveDate(today,-1)||state.date>today)state.date=today;}state.page=page;$("#sidebar").classList.remove("open");$("#mobileMenu").setAttribute("aria-expanded","false");document.querySelectorAll(".nav-item, .header-streak").forEach(b=>{const active=b.dataset.nav===page;b.classList.toggle("active",active);if(active)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current");});$("#pageCrumb").textContent=({dashboard:"Dashboard",log:"Daily log",schedule:"My schedule",forms:"My Forms",admin:"Admin panel",help:"How to Use",focus:"Focus timer",streak:"Study streak",logout:"Logout"}[page]||page);render();}
 $("#mobileMenu").addEventListener("click",()=>{const sidebar=$("#sidebar"),isOpen=sidebar.classList.toggle("open");$("#mobileMenu").setAttribute("aria-expanded",String(isOpen));});
 $("#profileButton").addEventListener("click",()=>{if(state.user)navigate("logout");});
-async function render(){if(!state.user)return;const page=state.page,ownerId=state.user.id;try{if(state.page==="dashboard")await renderDashboard();else if(state.page==="log")await renderLog();else if(state.page==="schedule")await renderSchedule();else if(state.page==="forms")await MyForms.render({container:content,request,esc,datePretty,toast,isCurrent:()=>state.page==="forms"&&state.user?.id===ownerId});else if(state.page==="help")HowToUse.render({container:content,navigate});else if(state.page==="focus")FocusTimer.render();else if(state.page==="streak")await StudyStreak.render({userId:ownerId,request,isCurrent:()=>state.page==="streak"&&state.user?.id===ownerId,openLog:date=>{state.date=date;navigate("log");}});else renderLogout();}catch(e){if(state.page!==page||state.user?.id!==ownerId)return;content.innerHTML='<div class="chart-card"><h3>Could not load this view</h3><p class="muted">'+esc(e.message)+'</p><button class="button button-primary" id="retryButton">Try again</button></div>';$("#retryButton").onclick=render;}}
+async function render(){if(!state.user)return;const page=state.page,ownerId=state.user.id;try{if(state.page==="dashboard")await renderDashboard();else if(state.page==="log")await renderLog();else if(state.page==="schedule")await renderSchedule();else if(state.page==="forms")await MyForms.render({container:content,request,esc,datePretty,toast,isCurrent:()=>state.page==="forms"&&state.user?.id===ownerId});else if(state.page==="admin"){if(!state.user.isAdmin)throw new Error("Administrator access required.");await AdminPanel.render({container:content,request,esc,toast,isCurrent:()=>state.page==="admin"&&state.user?.id===ownerId});}else if(state.page==="help")HowToUse.render({container:content,navigate});else if(state.page==="focus")FocusTimer.render();else if(state.page==="streak")await StudyStreak.render({userId:ownerId,request,isCurrent:()=>state.page==="streak"&&state.user?.id===ownerId,openLog:date=>{state.date=date;navigate("log");}});else renderLogout();}catch(e){if(state.page!==page||state.user?.id!==ownerId)return;content.innerHTML='<div class="chart-card"><h3>Could not load this view</h3><p class="muted">'+esc(e.message)+'</p><button class="button button-primary" id="retryButton">Try again</button></div>';$("#retryButton").onclick=render;}}
 function dateControl(label){const recentOnly=label==="One entry per day",today=new Date().toLocaleDateString("en-CA"),yesterday=moveDate(today,-1),min=recentOnly?yesterday:"",max=recentOnly?today:"",prevDisabled=recentOnly&&state.date<=yesterday,nextDisabled=recentOnly&&state.date>=today;return '<div class="date-controls"><button type="button" data-step="-1" aria-label="Previous day"'+(prevDisabled?' disabled':'')+'>‹</button><input type="date" id="viewDate" value="'+esc(state.date)+'" '+(min?'min="'+min+'" max="'+max+'" ':'')+'aria-label="Choose date"><button type="button" data-step="1" aria-label="Next day"'+(nextDisabled?' disabled':'')+'>›</button><span class="date-caption">'+esc(recentOnly?"Today and yesterday only":label||"Selected date")+'</span></div>';}
 function hookDate(){const input=$("#viewDate");if(input)input.addEventListener("change",()=>{if(input.value&&(!input.min||input.value>=input.min)&&(!input.max||input.value<=input.max)){state.date=input.value;render();}});document.querySelectorAll("[data-step]").forEach(b=>b.addEventListener("click",()=>{const nextDate=moveDate(state.date,Number(b.dataset.step));if(input?.min&&(nextDate<input.min||nextDate>input.max))return;state.date=nextDate;render();}));}
 function pct(v,g){return g?Math.min(100,Math.round(v/g*100)):0;}

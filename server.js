@@ -60,7 +60,8 @@ function cookies(req){const out={};for(const p of (req.headers.cookie||"").split
 function findSession(req){const token=cookies(req).mtm_session;if(!token)return null;const h=crypto.createHash("sha256").update(token).digest("hex"),session=db.sessions.find(s=>s.tokenHash===h&&s.expiresAt>Date.now());if(!session)return null;const user=db.users.find(u=>u.id===session.userId);return user?{session,user}:null;}
 function cookie(token,clear){return "mtm_session="+(clear?"":encodeURIComponent(token))+"; HttpOnly; SameSite=Lax; Path=/; Max-Age="+(clear?0:SESSION_DAYS*86400)+(process.env.NODE_ENV==="production"?"; Secure":"");}
 async function newSession(user){const token=crypto.randomBytes(32).toString("base64url"),csrf=crypto.randomBytes(24).toString("base64url");db.sessions=db.sessions.filter(s=>s.expiresAt>Date.now());const tokenHash=crypto.createHash("sha256").update(token).digest("hex");db.sessions.push({tokenHash,csrf,userId:user.id,expiresAt:Date.now()+SESSION_DAYS*86400000});await save();return{token,csrf,tokenHash};}
-function userPublic(u){return{id:u.id,name:u.name,email:u.email||"",username:u.email?undefined:u.username,profile:u.profile};}
+function isAdmin(u){return u.role==="admin"&&(u.email||"").toLowerCase()==="pradeepmauryasln02@gmail.com";}
+function userPublic(u){return{id:u.id,name:u.name,email:u.email||"",username:u.email?undefined:u.username,profile:u.profile,isAdmin:isAdmin(u)};}
 function activities(userId,all){return db.activities.filter(a=>a.userId===userId&&(all||a.active!==false));}
 function defaults(userId){return [["Programming","Study"],["Aptitude","Study"],["Maths","Study"],["YouTube","Mobile"],["WhatsApp","Mobile"],["Chrome","Mobile"],["Sleep","Sleep"],["Work","Work"],["Other","Other"]].map(x=>({id:uid(),userId,name:x[0],group:x[1],color:COLORS[x[1]],active:true}));}
 function getLog(userId,date){return db.logs.find(x=>x.userId===userId&&x.date===date)||{userId,date,times:{},notes:""};}
@@ -109,13 +110,34 @@ async function api(req,res,url){
     const salt=crypto.randomBytes(16).toString("hex"),passwordHash=crypto.pbkdf2Sync(password,salt,260000,64,"sha512").toString("hex"),u={id:uid(),name,email,salt,passwordHash,profile:{studyGoalMinutes:null,mobileLimitMinutes:null}};
     db.users.push(u);db.activities.push(...defaults(u.id));const s=await newSession(u);return send(res,201,auth(u,s),{"Set-Cookie":cookie(s.token,false)});
   }
-  if(req.method==="POST"&&url.pathname==="/api/login"){
+  if(req.method==="POST"&&(url.pathname==="/api/login"||url.pathname==="/api/admin/login")){
     const b=await body(req),identifier=clean(b.email||b.username,254).toLowerCase(),u=db.users.find(x=>(x.email||"").toLowerCase()===identifier||(!x.email&&x.username===identifier));if(!u)return err(res,401,"Email or password is incorrect.");
     const h=crypto.pbkdf2Sync(String(b.password||""),u.salt,260000,64,"sha512");if(!crypto.timingSafeEqual(h,Buffer.from(u.passwordHash,"hex")))return err(res,401,"Email or password is incorrect.");
+    if(url.pathname==="/api/admin/login"&&!isAdmin(u))return err(res,403,"This account does not have administrator access.");
     const s=await newSession(u);return send(res,200,auth(u,s),{"Set-Cookie":cookie(s.token,false)});
   }
   if(req.method==="GET"&&url.pathname==="/api/me"){const f=findSession(req);if(!f)return err(res,401,"Sign in to continue.");return send(res,200,auth(f.user,f.session));}
   const f=need(req,res);if(!f)return;const u=f.user;
+  if(url.pathname.startsWith("/api/admin/")){
+    if(!isAdmin(u))return err(res,403,"Administrator access required.");
+    if(req.method==="GET"&&url.pathname==="/api/admin/users")return send(res,200,{users:db.users.map(user=>({id:user.id,name:user.name,email:user.email||"",username:user.email?undefined:user.username,isAdmin:isAdmin(user)}))});
+    if(req.method==="POST"&&url.pathname==="/api/admin/reset-password"){
+      if(!csrf(req,res,f))return;
+      const b=await body(req),target=db.users.find(user=>user.id===b.userId);
+      if(!target)return err(res,404,"User not found.");
+      if(isAdmin(target))return err(res,400,"Admin passwords cannot be reset here.");
+      if(typeof b.newPassword!=="string"||b.newPassword.length<12||b.newPassword.length>128)return err(res,400,"Use a new password of 12 to 128 characters.");
+      if(typeof b.adminPassword!=="string"||b.adminPassword.length>128)return err(res,400,"Enter your admin password.");
+      const check=crypto.pbkdf2Sync(b.adminPassword,u.salt,260000,64,"sha512");
+      if(!crypto.timingSafeEqual(check,Buffer.from(u.passwordHash,"hex")))return err(res,403,"Admin password is incorrect.");
+      const salt=crypto.randomBytes(16).toString("hex"),passwordHash=crypto.pbkdf2Sync(b.newPassword,salt,260000,64,"sha512").toString("hex");
+      const previous={salt:target.salt,passwordHash:target.passwordHash},oldSessions=db.sessions;
+      target.salt=salt;target.passwordHash=passwordHash;db.sessions=db.sessions.filter(session=>session.userId!==target.id);
+      try{await save();}catch(error){Object.assign(target,previous);db.sessions=oldSessions;throw error;}
+      return send(res,200,{ok:true});
+    }
+    return err(res,404,"Admin endpoint not found.");
+  }
   if(url.pathname==="/api/forms"||url.pathname.startsWith("/api/forms/")){
     const id=url.pathname==="/api/forms"?null:url.pathname.slice("/api/forms/".length);
     try{

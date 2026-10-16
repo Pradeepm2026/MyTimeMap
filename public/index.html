@@ -19,7 +19,8 @@
   <script src="/study-streak.js" defer></script>
   <script src="/my-forms.js" defer></script>
   <script src="/how-to-use.js" defer></script>
-  <script src="/app.js" defer></script>
+  <script src="/app.js?v=admin-login-2" defer></script>
+  <script src="/admin.js" defer></script>
 </head>
 <body>
   <div id="welcomeView" class="welcome-screen welcome-enter">
@@ -82,6 +83,7 @@
           <p id="authError" class="form-error" role="alert"></p>
           <button class="button button-primary button-wide" type="submit" id="authSubmit">Sign in <span>→</span></button>
         </form>
+        <p class="auth-note"><button type="button" id="adminLoginLink">Admin login →</button></p>
         <section class="recovery-card hidden" id="recoveryCard" aria-live="polite">
           <span class="recovery-icon" aria-hidden="true">✦</span>
           <p class="recovery-label">ACCOUNT RECOVERY</p>
@@ -105,6 +107,7 @@
         <button class="nav-item" data-nav="schedule"><span class="nav-icon">▦</span>My schedule</button>
         <button class="nav-item" data-nav="forms"><span class="nav-icon" aria-hidden="true">▤</span>My Forms</button>
         <button class="nav-item" data-nav="help"><span class="nav-icon" aria-hidden="true">?</span>How to Use</button>
+        <button class="nav-item hidden" id="adminNav" data-nav="admin"><span class="nav-icon" aria-hidden="true">⚙</span>Admin panel</button>
         <button class="nav-item logout-nav" data-nav="logout"><span class="nav-icon">↪</span>Logout</button>
       </nav>
       <div class="sidebar-bottom">
